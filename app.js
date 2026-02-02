@@ -1,0 +1,682 @@
+const mockState = {
+  deckName: "Grixis Tempo",
+  updatedAt: new Date().toISOString(),
+};
+
+const toast = document.querySelector(".toast");
+const deckList = document.querySelector("#deck-list");
+const importFile = document.querySelector("#import-file");
+const importRun = document.querySelector("#import-run");
+const importProgress = document.querySelector("#import-progress");
+const importSummary = document.querySelector("#import-summary");
+const exportPdf = document.querySelector("#export-pdf");
+const dictUrlInput = document.querySelector("#dict-url");
+const dictEncoding = document.querySelector("#dict-encoding");
+const dictFetchButton = document.querySelector("#dict-fetch");
+const dictFileInput = document.querySelector("#dict-file");
+const dictStatus = document.querySelector("#dict-status");
+const pdfPlayer = document.querySelector("#pdf-player");
+const pdfDate = document.querySelector("#pdf-date");
+const statTotal = document.querySelector("#stat-total");
+const statCreature = document.querySelector("#stat-creature");
+const statSpell = document.querySelector("#stat-spell");
+const statLand = document.querySelector("#stat-land");
+const statCmc = document.querySelector("#stat-cmc");
+const clearDeck = document.querySelector("#deck-clear");
+const printDate = document.querySelector("#print-date");
+const printPlayer = document.querySelector("#print-player");
+const printDay = document.querySelector("#print-day");
+const printMainCount = document.querySelector("#print-main-count");
+const printSideCount = document.querySelector("#print-side-count");
+const printCreatureCount = document.querySelector("#print-creature-count");
+const printLandCount = document.querySelector("#print-land-count");
+const printMainList = document.querySelector("#print-main-list");
+const printSideList = document.querySelector("#print-side-list");
+
+const deckState = {
+  main: [],
+  side: [],
+};
+
+const scryfallCache = new Map();
+let dictionaryMap = null;
+
+function showToast(message) {
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("show");
+  setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2400);
+}
+
+function resetProgress() {
+  if (importProgress) {
+    importProgress.style.width = "0%";
+  }
+}
+
+function setProgress(value) {
+  if (importProgress) {
+    importProgress.style.width = `${value}%`;
+  }
+}
+
+function normalizeLine(line) {
+  return line.replace(/\s+/g, " ").trim();
+}
+
+function normalizeNameKey(text) {
+  return normalizeLine(text)
+    .replace(/^["'「『《\[]+/, "")
+    .replace(/["'」』》\]]+$/, "")
+    .toLowerCase();
+}
+
+function isAscii(text) {
+  return /^[\x00-\x7F]*$/.test(text);
+}
+
+function hasJapanese(text) {
+  return /[ぁ-んァ-ン一-龯々]/.test(text);
+}
+
+function classifyType(typeLine) {
+  if (!typeLine) return "spell";
+  if (/Land/i.test(typeLine)) return "land";
+  if (/Creature/i.test(typeLine)) return "creature";
+  return "spell";
+}
+
+async function fetchScryfallCard(name) {
+  const key = name.toLowerCase();
+  if (scryfallCache.has(key)) return scryfallCache.get(key);
+  const url = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(
+    name
+  )}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("not found");
+    const data = await res.json();
+    scryfallCache.set(key, data);
+    return data;
+  } catch (error) {
+    scryfallCache.set(key, null);
+    return null;
+  }
+}
+
+async function fetchJapaneseName(name) {
+  const exactUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(
+    name
+  )}&lang=ja`;
+  const fuzzyUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(
+    name
+  )}&lang=ja`;
+  const searchUrl = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
+    `!"${name}" lang:ja`
+  )}`;
+
+  async function extractPrintedName(res) {
+    if (!res.ok) throw new Error("not found");
+    const data = await res.json();
+    if (data.card_faces && data.card_faces.length) {
+      const faces = data.card_faces
+        .map((face) => face.printed_name || face.name)
+        .filter(Boolean);
+      return faces.join(" / ");
+    }
+    return data.printed_name || data.name || null;
+  }
+
+  async function extractFromSearch(res) {
+    if (!res.ok) throw new Error("not found");
+    const data = await res.json();
+    const first = data.data && data.data.length ? data.data[0] : null;
+    if (!first) return null;
+    if (first.card_faces && first.card_faces.length) {
+      const faces = first.card_faces
+        .map((face) => face.printed_name || face.name)
+        .filter(Boolean);
+      return faces.join(" / ");
+    }
+    return first.printed_name || first.name || null;
+  }
+
+  try {
+    return await extractPrintedName(await fetch(exactUrl));
+  } catch (error) {
+    // fall through
+  }
+
+  try {
+    return await extractPrintedName(await fetch(fuzzyUrl));
+  } catch (error) {
+    // fall through
+  }
+
+  try {
+    return await extractFromSearch(await fetch(searchUrl));
+  } catch (error) {
+    return null;
+  }
+}
+
+function parseDictionary(text) {
+  const map = new Map();
+  const lines = text.split(/\r?\n/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    const bracketStart = line.indexOf("《");
+    const bracketEnd = line.indexOf("》");
+    if (bracketStart !== -1 && bracketEnd !== -1 && bracketEnd > bracketStart) {
+      const inside = line.slice(bracketStart + 1, bracketEnd);
+      const slashIndex = inside.search(/\/(?=.*[A-Za-z])/);
+      if (slashIndex !== -1) {
+        const jaRaw = inside.slice(0, slashIndex);
+        const enRaw = inside.slice(slashIndex + 1);
+        const ja = jaRaw.replace(/[〈〉《》「」『』"]/g, "").trim();
+        const en = enRaw
+          .replace(/["'“”]/g, "")
+          .replace(/\s*\([^)]*\)\s*$/, "")
+          .trim();
+        const key = normalizeNameKey(en);
+        if (key && ja) {
+          map.set(key, ja);
+          continue;
+        }
+      }
+    }
+
+    let tokens = [];
+    if (line.includes("\t")) {
+      tokens = line.split("\t");
+    } else if (line.includes(" / ")) {
+      tokens = line.split(" / ");
+    } else if (line.includes("/")) {
+      tokens = line.split("/");
+    } else if (line.includes(",")) {
+      tokens = line.split(",");
+    } else {
+      tokens = line.split(" ");
+    }
+
+    const cleaned = tokens.map((token) => token.trim()).filter(Boolean);
+    if (cleaned.length < 2) continue;
+
+    const englishToken = cleaned.find((token) => /[A-Za-z]/.test(token));
+    const japaneseToken = cleaned.find((token) => hasJapanese(token));
+
+    if (!englishToken || !japaneseToken) continue;
+    const key = normalizeNameKey(englishToken.replace(/\s*\([^)]*\)\s*$/, ""));
+    if (!key) continue;
+    map.set(key, japaneseToken);
+  }
+  return map;
+}
+
+function translateFromDictionary(name) {
+  if (!dictionaryMap) return null;
+  const split = name.split(/\s*\/\/\s*/);
+  if (split.length > 1) {
+    const translated = split.map((part) => translateFromDictionary(part));
+    if (translated.every(Boolean)) return translated.join(" / ");
+  }
+  const direct = dictionaryMap.get(normalizeNameKey(name));
+  return direct || null;
+}
+
+function openDictDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("mtg-dict", 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains("dict")) {
+        db.createObjectStore("dict");
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveDictText(text) {
+  const db = await openDictDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("dict", "readwrite");
+    tx.objectStore("dict").put(text, "wg-dict");
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function loadDictText() {
+  const db = await openDictDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("dict", "readonly");
+    const request = tx.objectStore("dict").get("wg-dict");
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function setDictStatus(text) {
+  if (dictStatus) dictStatus.textContent = text;
+}
+
+async function loadDictionaryFromText(text) {
+  dictionaryMap = parseDictionary(text);
+  await saveDictText(text);
+  setDictStatus(`辞書読み込み済み (${dictionaryMap.size}件)`);
+}
+
+function getSelectedEncoding() {
+  if (!dictEncoding) return "shift_jis";
+  return dictEncoding.value || "shift_jis";
+}
+
+async function loadDictionaryFromUrl() {
+  if (!dictUrlInput || !dictUrlInput.value) {
+    showToast("辞書URLを入力してください。");
+    return;
+  }
+  setDictStatus("辞書を取得中...");
+  try {
+    const res = await fetch(dictUrlInput.value.trim());
+    if (!res.ok) throw new Error("fetch failed");
+    const buffer = await res.arrayBuffer();
+    const decoder = new TextDecoder(getSelectedEncoding());
+    const text = decoder.decode(buffer);
+    await loadDictionaryFromText(text);
+    showToast("辞書を読み込みました。");
+  } catch (error) {
+    setDictStatus("辞書取得に失敗しました。");
+    showToast("辞書の取得に失敗しました。");
+  }
+}
+
+async function loadDictionaryFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const buffer = reader.result instanceof ArrayBuffer ? reader.result : null;
+    if (!buffer) {
+      setDictStatus("辞書読み込みに失敗しました。");
+      showToast("辞書の読み込みに失敗しました。");
+      return;
+    }
+    const decoder = new TextDecoder(getSelectedEncoding());
+    const text = decoder.decode(buffer);
+    await loadDictionaryFromText(text);
+    showToast("辞書を読み込みました。");
+  };
+  reader.onerror = () => {
+    setDictStatus("辞書読み込みに失敗しました。");
+    showToast("辞書の読み込みに失敗しました。");
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function mapLimit(items, limit, mapper) {
+  const results = [];
+  let index = 0;
+
+  async function worker() {
+    while (index < items.length) {
+      const current = index;
+      index += 1;
+      results[current] = await mapper(items[current], current);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, worker);
+  await Promise.all(workers);
+  return results;
+}
+
+async function enrichDeckList(list) {
+  return mapLimit(list, 4, async (card) => {
+    const nameEn = card.name;
+    if (!isAscii(nameEn)) {
+      return {
+        ...card,
+        nameEn,
+        nameJa: card.name,
+        typeLine: "",
+        typeCategory: "spell",
+      };
+    }
+
+    const dictName = translateFromDictionary(nameEn);
+    const data = await fetchScryfallCard(nameEn);
+    if (!data) {
+      return {
+        ...card,
+        nameEn,
+        nameJa: dictName || null,
+        typeLine: "",
+        typeCategory: "spell",
+      };
+    }
+
+    const typeLine = data.type_line || "";
+    const typeCategory = classifyType(typeLine);
+    const nameJa = dictName || (await fetchJapaneseName(nameEn));
+
+    return {
+      ...card,
+      nameEn,
+      nameJa: nameJa || null,
+      typeLine,
+      typeCategory,
+    };
+  });
+}
+
+function parseDeckText(text) {
+  const rawLines = text.split(/\r?\n/);
+  const main = [];
+  const side = [];
+  let section = "main";
+  let hasMain = false;
+
+  for (const rawLine of rawLines) {
+    const trimmed = normalizeLine(rawLine);
+    if (!trimmed) {
+      if (hasMain) section = "side";
+      continue;
+    }
+    if (trimmed.startsWith("#")) continue;
+
+    const isSideTag = /^SB:/i.test(trimmed);
+    const clean = isSideTag ? trimmed.replace(/^SB:\s*/i, "") : trimmed;
+    const match = clean.match(/^(\d+)x?\s+(.+)$/);
+    if (!match) continue;
+    const quantity = Number(match[1]);
+    const name = match[2];
+    const entry = { name, quantity };
+    if (isSideTag || section === "side") {
+      side.push(entry);
+    } else {
+      main.push(entry);
+      hasMain = true;
+    }
+  }
+
+  return { main, side };
+}
+
+function renderDeck(main, side, container) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!main.length && !side.length) {
+    container.innerHTML =
+      '<div class="deck-row"><div><h4>カードがありません</h4><p>インポートするか検索から追加してください。</p></div></div>';
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const mainHeader = document.createElement("div");
+  mainHeader.className = "deck-section";
+  mainHeader.textContent = "Main Deck";
+  fragment.appendChild(mainHeader);
+
+  main.forEach((card) => {
+    const row = document.createElement("div");
+    row.className = "deck-row";
+    row.innerHTML = `
+      <div>
+        <h4>${card.name}</h4>
+        <p>インポート</p>
+      </div>
+      <div class="count">
+        <span>${card.quantity}</span>
+      </div>
+    `;
+    fragment.appendChild(row);
+  });
+
+  if (side.length) {
+    const sideHeader = document.createElement("div");
+    sideHeader.className = "deck-section";
+    sideHeader.textContent = "Sideboard";
+    fragment.appendChild(sideHeader);
+
+    side.forEach((card) => {
+      const row = document.createElement("div");
+      row.className = "deck-row";
+      row.innerHTML = `
+        <div>
+          <h4>${card.name}</h4>
+          <p>インポート</p>
+        </div>
+        <div class="count">
+          <span>${card.quantity}</span>
+        </div>
+      `;
+      fragment.appendChild(row);
+    });
+  }
+
+  container.appendChild(fragment);
+}
+
+function updateStats(list) {
+  const total = list.reduce((sum, card) => sum + card.quantity, 0);
+  if (statTotal) statTotal.textContent = `${total}`;
+  if (statCreature) statCreature.textContent = "0";
+  if (statSpell) statSpell.textContent = "0";
+  if (statLand) statLand.textContent = "0";
+  if (statCmc) statCmc.textContent = "-";
+}
+
+function updateSummary(mainCount, sideCount) {
+  if (!importSummary) return;
+  importSummary.textContent = `メイン ${mainCount}枚 / サイド ${sideCount}枚 をインポートしました。`;
+}
+
+function renderPrintGroup(target, title, list) {
+  if (!target) return;
+  const group = document.createElement("div");
+  group.className = "print-group";
+  const heading = document.createElement("div");
+  heading.className = "print-group-title";
+  heading.textContent = title;
+  group.appendChild(heading);
+  list.forEach((card) => {
+    const row = document.createElement("div");
+    row.className = "print-row";
+    row.innerHTML = `<span>${card.quantity}</span><span>${card.name}</span>`;
+    group.appendChild(row);
+  });
+  target.appendChild(group);
+}
+
+function renderPrintList(target, list) {
+  if (!target) return;
+  target.innerHTML = "";
+  const lands = list.filter((card) => card.typeCategory === "land");
+  const creatures = list.filter((card) => card.typeCategory === "creature");
+  const spells = list.filter((card) => card.typeCategory === "spell");
+  const countQty = (items) =>
+    items.reduce((sum, card) => sum + card.quantity, 0);
+  if (lands.length)
+    renderPrintGroup(target, `土地 (${countQty(lands)})`, lands);
+  if (creatures.length)
+    renderPrintGroup(
+      target,
+      `クリーチャー (${countQty(creatures)})`,
+      creatures
+    );
+  if (spells.length)
+    renderPrintGroup(target, `呪文 (${countQty(spells)})`, spells);
+}
+
+function updatePrintLayout() {
+  const now = new Date();
+  const dateString = now.toISOString().split("T")[0];
+  if (pdfDate && !pdfDate.value) {
+    pdfDate.value = dateString;
+  }
+  const player = pdfPlayer ? pdfPlayer.value.trim() : "";
+  if (printDate) {
+    const local = now.toLocaleString("ja-JP", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    printDate.textContent = local.replace(/\//g, "/");
+  }
+  if (printPlayer) printPlayer.textContent = player || "-";
+  if (printDay) printDay.textContent = pdfDate ? pdfDate.value || dateString : dateString;
+
+  const mainCount = deckState.main.reduce((sum, card) => sum + card.quantity, 0);
+  const sideCount = deckState.side.reduce((sum, card) => sum + card.quantity, 0);
+  if (printMainCount) printMainCount.textContent = `${mainCount}`;
+  if (printSideCount) printSideCount.textContent = `${sideCount}`;
+  if (printCreatureCount) {
+    const creatureCount = deckState.main
+      .filter((card) => card.typeCategory === "creature")
+      .reduce((sum, card) => sum + card.quantity, 0);
+    printCreatureCount.textContent = `${creatureCount}`;
+  }
+  if (printLandCount) {
+    const landCount = deckState.main
+      .filter((card) => card.typeCategory === "land")
+      .reduce((sum, card) => sum + card.quantity, 0);
+    printLandCount.textContent = `${landCount}`;
+  }
+
+  renderPrintList(printMainList, deckState.main);
+  renderPrintList(printSideList, deckState.side);
+}
+
+function runImport() {
+  if (!importFile || !importFile.files || !importFile.files[0]) {
+    showToast("インポートするファイルを選択してください。");
+    return;
+  }
+
+  const file = importFile.files[0];
+  resetProgress();
+  setProgress(10);
+  importRun.disabled = true;
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    setProgress(55);
+    const text = typeof reader.result === "string" ? reader.result : "";
+    const parsed = parseDeckText(text);
+    setProgress(65);
+    if (importSummary) {
+      importSummary.textContent = "Scryfallと照合中...";
+    }
+    const [mainEnriched, sideEnriched] = await Promise.all([
+      enrichDeckList(parsed.main),
+      enrichDeckList(parsed.side),
+    ]);
+    deckState.main = mainEnriched.map((card) => ({
+      ...card,
+      name: card.nameJa || card.nameEn || card.name,
+    }));
+    deckState.side = sideEnriched.map((card) => ({
+      ...card,
+      name: card.nameJa || card.nameEn || card.name,
+    }));
+    renderDeck(deckState.main, deckState.side, deckList);
+    updateStats(deckState.main);
+    updateSummary(
+      deckState.main.reduce((sum, card) => sum + card.quantity, 0),
+      deckState.side.reduce((sum, card) => sum + card.quantity, 0)
+    );
+    updatePrintLayout();
+    setProgress(100);
+    showToast("インポートが完了しました。");
+    importRun.disabled = false;
+  };
+  reader.onerror = () => {
+    setProgress(0);
+    importSummary.textContent = "読み込みに失敗しました。";
+    showToast("ファイルの読み込みに失敗しました。");
+    importRun.disabled = false;
+  };
+  reader.readAsText(file);
+}
+
+const installButton = document.querySelector(".header-actions .ghost");
+if (installButton) {
+  installButton.addEventListener("click", () => {
+    alert("PWAインストールは実装予定です。");
+  });
+}
+
+if (importRun) {
+  importRun.addEventListener("click", runImport);
+}
+
+if (clearDeck) {
+  clearDeck.addEventListener("click", () => {
+    deckState.main = [];
+    deckState.side = [];
+    renderDeck(deckState.main, deckState.side, deckList);
+    updateStats(deckState.main);
+    updateSummary(0, 0);
+    updatePrintLayout();
+    showToast("デッキをクリアしました。");
+  });
+}
+
+if (exportPdf) {
+  exportPdf.addEventListener("click", () => {
+    updatePrintLayout();
+    showToast("PDF出力の準備中...");
+    setTimeout(() => {
+      window.print();
+    }, 200);
+  });
+}
+
+if (pdfPlayer) {
+  pdfPlayer.addEventListener("input", updatePrintLayout);
+}
+
+if (pdfDate) {
+  pdfDate.addEventListener("change", updatePrintLayout);
+}
+
+console.log("Mock UI ready", mockState);
+
+updatePrintLayout();
+
+loadDictText()
+  .then((text) => {
+    if (text) {
+      dictionaryMap = parseDictionary(text);
+      setDictStatus(`辞書読み込み済み (${dictionaryMap.size}件)`);
+    }
+  })
+  .catch(() => {
+    setDictStatus("辞書未読み込み");
+  });
+
+if (dictFetchButton) {
+  dictFetchButton.addEventListener("click", loadDictionaryFromUrl);
+}
+
+if (dictFileInput) {
+  dictFileInput.addEventListener("change", (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (file) loadDictionaryFromFile(file);
+  });
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("Service worker registration failed", err);
+    });
+  });
+}
