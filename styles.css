@@ -685,7 +685,7 @@ button:hover {
 @media print {
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 8mm;
   }
 
   body {
@@ -735,7 +735,7 @@ button:hover {
   }
 
   .print-header h1 {
-    font-size: 16pt;
+    font-size: 14pt;
     margin-top: 4px;
   }
 
@@ -751,42 +751,42 @@ button:hover {
   .print-summary {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
+    gap: 6px;
     background: #f1f1f1;
-    padding: 6px 8px;
+    padding: 4px 6px;
     border-radius: 4px;
-    font-size: 9pt;
-    margin-bottom: 10px;
+    font-size: 8.5pt;
+    margin-bottom: 8px;
   }
 
   .print-section {
-    margin-bottom: 10px;
-  }
-
-  .print-section h2 {
-    font-size: 10.5pt;
-    border-bottom: 1px solid #222;
-    padding-bottom: 4px;
     margin-bottom: 6px;
   }
 
-  .print-section h3 {
-    font-size: 9.5pt;
+  .print-section h2 {
+    font-size: 10pt;
+    border-bottom: 1px solid #222;
+    padding-bottom: 3px;
     margin-bottom: 4px;
+  }
+
+  .print-section h3 {
+    font-size: 9pt;
+    margin-bottom: 3px;
   }
 
   .print-list {
     column-count: 2;
-    column-gap: 18px;
-    font-size: 9pt;
+    column-gap: 14px;
+    font-size: 8.5pt;
   }
 
   .print-row {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 6px;
+    gap: 4px;
     border-bottom: 1px solid #e2e2e2;
-    padding-bottom: 3px;
+    padding-bottom: 2px;
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -799,13 +799,13 @@ button:hover {
   .print-group {
     break-inside: avoid;
     page-break-inside: avoid;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .print-group-title {
-    font-size: 9.5pt;
+    font-size: 9pt;
     font-weight: 600;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     border-bottom: 1px solid #222;
     padding-bottom: 2px;
   }
