@@ -8,6 +8,8 @@ const deckList = document.querySelector("#deck-list");
 const searchInput = document.querySelector("#search-input");
 const searchButton = document.querySelector("#search-button");
 const searchResults = document.querySelector("#search-results");
+const formatSelect = document.querySelector("#format-select");
+const formatNote = document.querySelector("#format-note");
 const importFile = document.querySelector("#import-file");
 const importRun = document.querySelector("#import-run");
 const importProgress = document.querySelector("#import-progress");
@@ -97,9 +99,25 @@ function isBasicLand(card) {
 
 function classifyType(typeLine) {
   if (!typeLine) return "spell";
-  if (/Land/i.test(typeLine)) return "land";
-  if (/Creature/i.test(typeLine)) return "creature";
+  if (/Land|土地/i.test(typeLine)) return "land";
+  if (/Creature|クリーチャー/i.test(typeLine)) return "creature";
   return "spell";
+}
+
+function getSelectedFormat() {
+  if (!formatSelect) return "all";
+  return formatSelect.value || "all";
+}
+
+function isLegalForFormat(card, format) {
+  if (!format || format === "all") return true;
+  const status = card.legalities ? card.legalities[format] : null;
+  return status === "legal" || status === "restricted";
+}
+
+function filterByFormat(list) {
+  const format = getSelectedFormat();
+  return list.filter((card) => isLegalForFormat(card, format));
 }
 
 async function fetchScryfallCard(name) {
@@ -108,6 +126,24 @@ async function fetchScryfallCard(name) {
   const url = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(
     name
   )}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("not found");
+    const data = await res.json();
+    scryfallCache.set(key, data);
+    return data;
+  } catch (error) {
+    scryfallCache.set(key, null);
+    return null;
+  }
+}
+
+async function fetchScryfallCardJa(name) {
+  const key = `ja:${name.toLowerCase()}`;
+  if (scryfallCache.has(key)) return scryfallCache.get(key);
+  const url = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(
+    name
+  )}&lang=ja`;
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error("not found");
@@ -237,6 +273,7 @@ function normalizeResultCard(card, nameJaOverride) {
     cmc: typeof card.cmc === "number" ? card.cmc : null,
     colors: card.colors || [],
     imageUrl: getCardImage(card),
+    legalities: card.legalities || {},
   };
 }
 
@@ -261,9 +298,15 @@ async function runSearch(query) {
     return normalizeResultCard(card, nameJa);
   });
 
+  const format = getSelectedFormat();
+  const filtered = mapped.filter((card) => isLegalForFormat(card, format));
+  if (!filtered.length) {
+    searchResults.innerHTML = `<div class="search-empty">このフォーマットで合法なカードがありません。</div>`;
+    return;
+  }
   lastSearchResults.clear();
-  mapped.forEach((card) => lastSearchResults.set(card.id, card));
-  renderSearchResults(mapped);
+  filtered.forEach((card) => lastSearchResults.set(card.id, card));
+  renderSearchResults(filtered);
 }
 
 function renderSearchResults(list) {
@@ -293,6 +336,11 @@ function renderSearchResults(list) {
 }
 
 function addCardToBoard(board, card) {
+  const format = getSelectedFormat();
+  if (!isLegalForFormat(card, format)) {
+    showToast("選択中のフォーマットでは使用できません。");
+    return;
+  }
   const list = board === "side" ? deckState.side : deckState.main;
   const existing = list.find((entry) => entry.nameEn === card.nameEn);
   if (existing) {
@@ -307,13 +355,8 @@ function addCardToBoard(board, card) {
       quantity: 1,
     });
   }
-  renderDeck(deckState.main, deckState.side, deckList);
-  updateStats(deckState.main);
-  updateSummary(
-    deckState.main.reduce((sum, c) => sum + c.quantity, 0),
-    deckState.side.reduce((sum, c) => sum + c.quantity, 0)
-  );
-  updatePrintLayout();
+  updateSummary(countQty(deckState.main), countQty(deckState.side));
+  refreshViews();
   showToast("カードを追加しました。");
 }
 
@@ -494,12 +537,25 @@ async function enrichDeckList(list) {
   return mapLimit(list, 4, async (card) => {
     const nameEn = card.name;
     if (!isAscii(nameEn)) {
+      const dataJa = await fetchScryfallCardJa(nameEn);
+      if (dataJa) {
+        const typeLine = dataJa.type_line || "";
+        return {
+          ...card,
+          nameEn: dataJa.name || nameEn,
+          nameJa: dataJa.printed_name || nameEn,
+          typeLine,
+          typeCategory: classifyType(typeLine),
+          legalities: dataJa.legalities || {},
+        };
+      }
       return {
         ...card,
         nameEn,
         nameJa: card.name,
         typeLine: "",
         typeCategory: "spell",
+        legalities: {},
       };
     }
 
@@ -512,6 +568,7 @@ async function enrichDeckList(list) {
         nameJa: dictName || null,
         typeLine: "",
         typeCategory: "spell",
+        legalities: {},
       };
     }
 
@@ -525,6 +582,7 @@ async function enrichDeckList(list) {
       nameJa: nameJa || null,
       typeLine,
       typeCategory,
+      legalities: data.legalities || {},
     };
   });
 }
@@ -562,12 +620,14 @@ function parseDeckText(text) {
   return { main, side };
 }
 
-function renderDeck(main, side, container) {
+function renderDeck(main, side, container, emptyMessage) {
   if (!container) return;
   container.innerHTML = "";
   if (!main.length && !side.length) {
     container.innerHTML =
-      '<div class="deck-row"><div><h4>カードがありません</h4><p>インポートするか検索から追加してください。</p></div></div>';
+      `<div class="deck-row"><div><h4>カードがありません</h4><p>${
+        emptyMessage || "インポートするか検索から追加してください。"
+      }</p></div></div>`;
     return;
   }
 
@@ -618,7 +678,7 @@ function renderDeck(main, side, container) {
 }
 
 function updateStats(list) {
-  const total = list.reduce((sum, card) => sum + card.quantity, 0);
+  const total = countQty(list);
   if (statTotal) statTotal.textContent = `${total}`;
   if (statCreature) statCreature.textContent = "0";
   if (statSpell) statSpell.textContent = "0";
@@ -629,6 +689,10 @@ function updateStats(list) {
 function updateSummary(mainCount, sideCount) {
   if (!importSummary) return;
   importSummary.textContent = `メイン ${mainCount}枚 / サイド ${sideCount}枚 をインポートしました。`;
+}
+
+function countQty(list) {
+  return list.reduce((sum, card) => sum + card.quantity, 0);
 }
 
 function renderPrintGroup(target, title, list) {
@@ -688,25 +752,75 @@ function updatePrintLayout() {
   if (printPlayer) printPlayer.textContent = player || "-";
   if (printDay) printDay.textContent = pdfDate ? pdfDate.value || dateString : dateString;
 
-  const mainCount = deckState.main.reduce((sum, card) => sum + card.quantity, 0);
-  const sideCount = deckState.side.reduce((sum, card) => sum + card.quantity, 0);
+  const mainVisible = filterByFormat(deckState.main);
+  const sideVisible = filterByFormat(deckState.side);
+  const mainCount = countQty(mainVisible);
+  const sideCount = countQty(sideVisible);
   if (printMainCount) printMainCount.textContent = `${mainCount}`;
   if (printSideCount) printSideCount.textContent = `${sideCount}`;
   if (printCreatureCount) {
-    const creatureCount = deckState.main
+    const creatureCount = mainVisible
       .filter((card) => card.typeCategory === "creature")
       .reduce((sum, card) => sum + card.quantity, 0);
     printCreatureCount.textContent = `${creatureCount}`;
   }
   if (printLandCount) {
-    const landCount = deckState.main
+    const landCount = mainVisible
       .filter((card) => card.typeCategory === "land")
       .reduce((sum, card) => sum + card.quantity, 0);
     printLandCount.textContent = `${landCount}`;
   }
 
-  renderPrintList(printMainList, deckState.main);
-  renderPrintList(printSideList, deckState.side);
+  renderPrintList(printMainList, mainVisible);
+  renderPrintList(printSideList, sideVisible);
+}
+
+function updateFormatNote(hiddenMain, hiddenSide) {
+  if (!formatNote) return;
+  const format = getSelectedFormat();
+  const labels = {
+    all: "なし",
+    standard: "スタンダード",
+    modern: "モダン",
+    pioneer: "パイオニア",
+    legacy: "レガシー",
+    vintage: "ヴィンテージ",
+    pauper: "パウパー",
+    commander: "統率者戦",
+    historic: "ヒストリック",
+    alchemy: "アルケミー",
+    explorer: "エクスプローラー",
+    timeless: "タイムレス",
+  };
+  const label = labels[format] || format;
+  if (format === "all") {
+    formatNote.textContent = "フォーマット制限: なし";
+    return;
+  }
+  if (hiddenMain || hiddenSide) {
+    formatNote.textContent = `フォーマット制限: ${label}（非合法: メイン${hiddenMain}枚 / サイド${hiddenSide}枚）`;
+  } else {
+    formatNote.textContent = `フォーマット制限: ${label}`;
+  }
+}
+
+function refreshViews() {
+  const mainVisible = filterByFormat(deckState.main);
+  const sideVisible = filterByFormat(deckState.side);
+  const mainTotal = countQty(deckState.main);
+  const sideTotal = countQty(deckState.side);
+  const mainVisibleCount = countQty(mainVisible);
+  const sideVisibleCount = countQty(sideVisible);
+  const hiddenMain = Math.max(0, mainTotal - mainVisibleCount);
+  const hiddenSide = Math.max(0, sideTotal - sideVisibleCount);
+  const emptyMessage =
+    getSelectedFormat() !== "all" && (hiddenMain || hiddenSide)
+      ? "フォーマット制限により非表示のカードがあります。"
+      : null;
+  renderDeck(mainVisible, sideVisible, deckList, emptyMessage);
+  updateStats(mainVisible);
+  updatePrintLayout();
+  updateFormatNote(hiddenMain, hiddenSide);
 }
 
 function runImport() {
@@ -741,13 +855,8 @@ function runImport() {
       ...card,
       name: card.nameJa || card.nameEn || card.name,
     }));
-    renderDeck(deckState.main, deckState.side, deckList);
-    updateStats(deckState.main);
-    updateSummary(
-      deckState.main.reduce((sum, card) => sum + card.quantity, 0),
-      deckState.side.reduce((sum, card) => sum + card.quantity, 0)
-    );
-    updatePrintLayout();
+    updateSummary(countQty(deckState.main), countQty(deckState.side));
+    refreshViews();
     setProgress(100);
     showToast("インポートが完了しました。");
     importRun.disabled = false;
@@ -776,10 +885,8 @@ if (clearDeck) {
   clearDeck.addEventListener("click", () => {
     deckState.main = [];
     deckState.side = [];
-    renderDeck(deckState.main, deckState.side, deckList);
-    updateStats(deckState.main);
     updateSummary(0, 0);
-    updatePrintLayout();
+    refreshViews();
     showToast("デッキをクリアしました。");
   });
 }
@@ -804,7 +911,7 @@ if (pdfDate) {
 
 console.log("Mock UI ready", mockState);
 
-updatePrintLayout();
+refreshViews();
 
 loadDictText()
   .then((text) => {
@@ -853,6 +960,15 @@ if (searchResults) {
     const card = id ? lastSearchResults.get(id) : null;
     if (!card) return;
     addCardToBoard(action === "add-side" ? "side" : "main", card);
+  });
+}
+
+if (formatSelect) {
+  formatSelect.addEventListener("change", () => {
+    refreshViews();
+    if (searchInput && searchInput.value) {
+      runSearch(searchInput.value);
+    }
   });
 }
 

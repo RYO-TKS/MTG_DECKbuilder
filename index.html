@@ -38,6 +38,25 @@
           <input id="search-input" type="search" placeholder="カード名を入力 (例: Lightning Bolt / 稲妻)" />
           <button class="primary" id="search-button">検索</button>
         </div>
+        <div class="format-bar">
+          <label>
+            フォーマット
+            <select id="format-select">
+              <option value="all">制限なし</option>
+              <option value="standard">スタンダード</option>
+              <option value="modern">モダン</option>
+              <option value="pioneer">パイオニア</option>
+              <option value="legacy">レガシー</option>
+              <option value="vintage">ヴィンテージ</option>
+              <option value="pauper">パウパー</option>
+              <option value="commander">統率者戦</option>
+              <option value="historic">ヒストリック</option>
+              <option value="alchemy">アルケミー</option>
+              <option value="explorer">エクスプローラー</option>
+              <option value="timeless">タイムレス</option>
+            </select>
+          </label>
+        </div>
         <div class="search-filters">
           <span class="chip active">すべて</span>
           <span class="chip">クリーチャー</span>
@@ -103,6 +122,7 @@
           </div>
           <button class="danger" id="deck-clear">デッキクリア</button>
         </div>
+        <div class="format-note" id="format-note">フォーマット制限: なし</div>
         <div class="deck-list" id="deck-list">
           <div class="deck-row">
             <div>
