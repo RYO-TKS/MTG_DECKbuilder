@@ -20,6 +20,7 @@ const dictEncoding = document.querySelector("#dict-encoding");
 const dictFetchButton = document.querySelector("#dict-fetch");
 const dictFileInput = document.querySelector("#dict-file");
 const dictStatus = document.querySelector("#dict-status");
+const dictAuto = document.querySelector("#dict-auto");
 const pdfPlayer = document.querySelector("#pdf-player");
 const pdfDate = document.querySelector("#pdf-date");
 const statTotal = document.querySelector("#stat-total");
@@ -47,6 +48,9 @@ const scryfallCache = new Map();
 let dictionaryMap = null;
 let searchTimer = null;
 const lastSearchResults = new Map();
+const DICT_URL_KEY = "mtg.dict.url";
+const DICT_AUTO_KEY = "mtg.dict.auto";
+const DICT_UPDATED_KEY = "mtg.dict.updated";
 
 function showToast(message) {
   if (!toast) return;
@@ -467,7 +471,9 @@ function setDictStatus(text) {
 async function loadDictionaryFromText(text) {
   dictionaryMap = parseDictionary(text);
   await saveDictText(text);
-  setDictStatus(`辞書読み込み済み (${dictionaryMap.size}件)`);
+  const updatedAt = new Date().toLocaleString("ja-JP");
+  localStorage.setItem(DICT_UPDATED_KEY, updatedAt);
+  setDictStatus(`辞書読み込み済み (${dictionaryMap.size}件) / 更新: ${updatedAt}`);
 }
 
 function getSelectedEncoding() {
@@ -488,6 +494,7 @@ async function loadDictionaryFromUrl() {
     const decoder = new TextDecoder(getSelectedEncoding());
     const text = decoder.decode(buffer);
     await loadDictionaryFromText(text);
+    localStorage.setItem(DICT_URL_KEY, dictUrlInput.value.trim());
     showToast("辞書を読み込みました。");
   } catch (error) {
     setDictStatus("辞書取得に失敗しました。");
@@ -917,12 +924,31 @@ loadDictText()
   .then((text) => {
     if (text) {
       dictionaryMap = parseDictionary(text);
-      setDictStatus(`辞書読み込み済み (${dictionaryMap.size}件)`);
+      const updatedAt = localStorage.getItem(DICT_UPDATED_KEY) || "不明";
+      setDictStatus(`辞書読み込み済み (${dictionaryMap.size}件) / 更新: ${updatedAt}`);
     }
   })
   .catch(() => {
     setDictStatus("辞書未読み込み");
   });
+
+if (dictUrlInput) {
+  const savedUrl = localStorage.getItem(DICT_URL_KEY);
+  if (savedUrl) dictUrlInput.value = savedUrl;
+  dictUrlInput.addEventListener("change", () => {
+    if (dictUrlInput.value) {
+      localStorage.setItem(DICT_URL_KEY, dictUrlInput.value.trim());
+    }
+  });
+}
+
+if (dictAuto) {
+  const autoSaved = localStorage.getItem(DICT_AUTO_KEY);
+  dictAuto.checked = autoSaved === "1";
+  dictAuto.addEventListener("change", () => {
+    localStorage.setItem(DICT_AUTO_KEY, dictAuto.checked ? "1" : "0");
+  });
+}
 
 if (dictFetchButton) {
   dictFetchButton.addEventListener("click", loadDictionaryFromUrl);
@@ -933,6 +959,14 @@ if (dictFileInput) {
     const file = event.target.files && event.target.files[0];
     if (file) loadDictionaryFromFile(file);
   });
+}
+
+if (localStorage.getItem(DICT_AUTO_KEY) === "1") {
+  const url = localStorage.getItem(DICT_URL_KEY);
+  if (url && dictUrlInput) {
+    dictUrlInput.value = url;
+    loadDictionaryFromUrl();
+  }
 }
 
 if (searchInput) {
