@@ -5,6 +5,9 @@ const mockState = {
 
 const toast = document.querySelector(".toast");
 const deckList = document.querySelector("#deck-list");
+const searchInput = document.querySelector("#search-input");
+const searchButton = document.querySelector("#search-button");
+const searchResults = document.querySelector("#search-results");
 const importFile = document.querySelector("#import-file");
 const importRun = document.querySelector("#import-run");
 const importProgress = document.querySelector("#import-progress");
@@ -40,6 +43,8 @@ const deckState = {
 
 const scryfallCache = new Map();
 let dictionaryMap = null;
+let searchTimer = null;
+const lastSearchResults = new Map();
 
 function showToast(message) {
   if (!toast) return;
@@ -79,6 +84,15 @@ function isAscii(text) {
 
 function hasJapanese(text) {
   return /[ぁ-んァ-ン一-龯々]/.test(text);
+}
+
+function isBasicLand(card) {
+  const names = ["Plains", "Island", "Swamp", "Mountain", "Forest", "平地", "島", "沼", "山", "森"];
+  if (card.typeLine && /Basic Land/i.test(card.typeLine)) return true;
+  if (card.name && names.includes(card.name)) return true;
+  if (card.nameEn && names.includes(card.nameEn)) return true;
+  if (card.nameJa && names.includes(card.nameJa)) return true;
+  return false;
 }
 
 function classifyType(typeLine) {
@@ -160,6 +174,147 @@ async function fetchJapaneseName(name) {
   } catch (error) {
     return null;
   }
+}
+
+async function searchScryfall(query) {
+  const trimmed = normalizeLine(query);
+  if (!trimmed) return [];
+  const isJa = hasJapanese(trimmed);
+  const params = new URLSearchParams({
+    unique: "cards",
+    order: "name",
+  });
+  if (isJa) {
+    params.set("q", `lang:ja name:"${trimmed}"`);
+  } else {
+    params.set("q", trimmed);
+  }
+  const url = `https://api.scryfall.com/cards/search?${params.toString()}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("search failed");
+    const data = await res.json();
+    return data.data || [];
+  } catch (error) {
+    if (isJa) {
+      const fallback = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(
+        trimmed
+      )}&lang=ja`;
+      try {
+        const res = await fetch(fallback);
+        if (!res.ok) throw new Error("fallback failed");
+        const data = await res.json();
+        return [data];
+      } catch (err) {
+        return [];
+      }
+    }
+    return [];
+  }
+}
+
+function getCardImage(card) {
+  if (card.image_uris && card.image_uris.normal) return card.image_uris.normal;
+  if (card.card_faces && card.card_faces[0] && card.card_faces[0].image_uris) {
+    return card.card_faces[0].image_uris.normal || "";
+  }
+  return "";
+}
+
+function normalizeResultCard(card, nameJaOverride) {
+  const typeLine = card.type_line || "";
+  const typeCategory = classifyType(typeLine);
+  const nameEn = card.name || "";
+  const nameJa = nameJaOverride || card.printed_name || null;
+  return {
+    id: card.id,
+    nameEn,
+    nameJa,
+    name: nameJa || nameEn,
+    typeLine,
+    typeCategory,
+    manaCost: card.mana_cost || "",
+    cmc: typeof card.cmc === "number" ? card.cmc : null,
+    colors: card.colors || [],
+    imageUrl: getCardImage(card),
+  };
+}
+
+async function resolveJapaneseName(card) {
+  if (card.lang === "ja" && card.printed_name) return card.printed_name;
+  const dictName = translateFromDictionary(card.name || "");
+  if (dictName) return dictName;
+  return fetchJapaneseName(card.name || "");
+}
+
+async function runSearch(query) {
+  if (!searchResults) return;
+  searchResults.innerHTML = `<div class="search-empty">検索中...</div>`;
+  const results = await searchScryfall(query);
+  if (!results.length) {
+    searchResults.innerHTML = `<div class="search-empty">該当カードがありません。</div>`;
+    return;
+  }
+
+  const mapped = await mapLimit(results.slice(0, 12), 4, async (card) => {
+    const nameJa = hasJapanese(query) ? card.printed_name : await resolveJapaneseName(card);
+    return normalizeResultCard(card, nameJa);
+  });
+
+  lastSearchResults.clear();
+  mapped.forEach((card) => lastSearchResults.set(card.id, card));
+  renderSearchResults(mapped);
+}
+
+function renderSearchResults(list) {
+  if (!searchResults) return;
+  searchResults.innerHTML = "";
+  list.forEach((card) => {
+    const article = document.createElement("article");
+    article.className = "result-card";
+    const imageStyle = card.imageUrl ? `style="background-image:url('${card.imageUrl}')"` : "";
+    article.innerHTML = `
+      <div class="thumb" ${imageStyle}></div>
+      <div>
+        <h3>${card.name}</h3>
+        <p>${card.nameEn} · ${card.typeLine || "—"}</p>
+        <div class="meta">
+          <span>${card.manaCost || "—"}</span>
+          <span>${card.cmc !== null ? `CMC ${card.cmc}` : "CMC —"}</span>
+        </div>
+      </div>
+      <div class="result-actions">
+        <button class="ghost" data-action="add-main" data-id="${card.id}">+ メイン</button>
+        <button class="ghost" data-action="add-side" data-id="${card.id}">+ サイド</button>
+      </div>
+    `;
+    searchResults.appendChild(article);
+  });
+}
+
+function addCardToBoard(board, card) {
+  const list = board === "side" ? deckState.side : deckState.main;
+  const existing = list.find((entry) => entry.nameEn === card.nameEn);
+  if (existing) {
+    if (!isBasicLand(existing) && existing.quantity >= 4) {
+      showToast("同名カードは4枚までです。");
+      return;
+    }
+    existing.quantity += 1;
+  } else {
+    list.push({
+      ...card,
+      quantity: 1,
+    });
+  }
+  renderDeck(deckState.main, deckState.side, deckList);
+  updateStats(deckState.main);
+  updateSummary(
+    deckState.main.reduce((sum, c) => sum + c.quantity, 0),
+    deckState.side.reduce((sum, c) => sum + c.quantity, 0)
+  );
+  updatePrintLayout();
+  showToast("カードを追加しました。");
 }
 
 function parseDictionary(text) {
@@ -670,6 +825,34 @@ if (dictFileInput) {
   dictFileInput.addEventListener("change", (event) => {
     const file = event.target.files && event.target.files[0];
     if (file) loadDictionaryFromFile(file);
+  });
+}
+
+if (searchInput) {
+  searchInput.addEventListener("input", (event) => {
+    const value = event.target.value;
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      runSearch(value);
+    }, 300);
+  });
+}
+
+if (searchButton && searchInput) {
+  searchButton.addEventListener("click", () => {
+    runSearch(searchInput.value);
+  });
+}
+
+if (searchResults) {
+  searchResults.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const id = button.getAttribute("data-id");
+    const action = button.getAttribute("data-action");
+    const card = id ? lastSearchResults.get(id) : null;
+    if (!card) return;
+    addCardToBoard(action === "add-side" ? "side" : "main", card);
   });
 }
 
