@@ -997,6 +997,14 @@ if (searchResults) {
   });
 }
 
+if (searchResults) {
+  searchResults.addEventListener("click", (event) => {
+    const thumb = event.target.closest(".thumb");
+    if (!thumb) return;
+    thumb.classList.toggle("is-zoomed");
+  });
+}
+
 if (formatSelect) {
   formatSelect.addEventListener("change", () => {
     refreshViews();

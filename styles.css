@@ -296,8 +296,9 @@ button:hover {
   position: relative;
 }
 
-.result-card:hover .thumb,
-.result-card:focus-within .thumb {
+.thumb:hover,
+.thumb:focus,
+.thumb.is-zoomed {
   transform: scale(6);
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
   z-index: 2;
