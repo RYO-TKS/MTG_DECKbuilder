@@ -522,26 +522,28 @@ button:hover {
   height: 10px;
   border-radius: 50%;
   display: inline-block;
+  background-size: cover;
+  background-position: center;
 }
 
 .legend-item .w {
-  background: #f5f1cf;
+  background-image: url("https://svgs.scryfall.com/card-symbols/W.svg");
 }
 
 .legend-item .u {
-  background: #83a7ff;
+  background-image: url("https://svgs.scryfall.com/card-symbols/U.svg");
 }
 
 .legend-item .b {
-  background: #7a66c0;
+  background-image: url("https://svgs.scryfall.com/card-symbols/B.svg");
 }
 
 .legend-item .r {
-  background: #e07a5f;
+  background-image: url("https://svgs.scryfall.com/card-symbols/R.svg");
 }
 
 .legend-item .g {
-  background: #83c47b;
+  background-image: url("https://svgs.scryfall.com/card-symbols/G.svg");
 }
 
 .io-grid {

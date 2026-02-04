@@ -630,6 +630,7 @@ async function enrichDeckList(list) {
           colors: dataJa.colors || [],
           colorIdentity: dataJa.color_identity || [],
           cmc: typeof dataJa.cmc === "number" ? dataJa.cmc : null,
+          imageUrl: getCardImage(dataJa),
         };
       }
       return {
@@ -642,6 +643,7 @@ async function enrichDeckList(list) {
         colors: [],
         colorIdentity: [],
         cmc: null,
+        imageUrl: "",
       };
     }
 
@@ -658,6 +660,7 @@ async function enrichDeckList(list) {
         colors: [],
         colorIdentity: [],
         cmc: null,
+        imageUrl: "",
       };
     }
 
@@ -675,6 +678,7 @@ async function enrichDeckList(list) {
       colors: data.colors || [],
       colorIdentity: data.color_identity || [],
       cmc: typeof data.cmc === "number" ? data.cmc : null,
+      imageUrl: getCardImage(data),
     };
   });
 }
