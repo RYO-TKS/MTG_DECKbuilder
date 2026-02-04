@@ -16,6 +16,8 @@ const importRun = document.querySelector("#import-run");
 const importProgress = document.querySelector("#import-progress");
 const importSummary = document.querySelector("#import-summary");
 const exportPdf = document.querySelector("#export-pdf");
+const exportArena = document.querySelector("#export-arena");
+const exportTxt = document.querySelector("#export-txt");
 const dictUrlInput = document.querySelector("#dict-url");
 const dictEncoding = document.querySelector("#dict-encoding");
 const dictFetchButton = document.querySelector("#dict-fetch");
@@ -814,6 +816,60 @@ function updateSummary(mainCount, sideCount) {
   importSummary.textContent = `メイン ${mainCount}枚 / サイド ${sideCount}枚 をインポートしました。`;
 }
 
+function buildArenaText() {
+  const lines = [];
+  deckState.main.forEach((card) => {
+    const name = card.nameEn || card.name || "";
+    lines.push(`${card.quantity} ${name}`);
+  });
+  if (deckState.side.length) {
+    lines.push("");
+    deckState.side.forEach((card) => {
+      const name = card.nameEn || card.name || "";
+      lines.push(`SB: ${card.quantity} ${name}`);
+    });
+  }
+  return lines.join("\n");
+}
+
+function buildJapaneseText() {
+  const lines = [];
+  deckState.main.forEach((card) => {
+    const name = card.nameJa || card.name || card.nameEn || "";
+    lines.push(`${card.quantity} ${name}`);
+  });
+  if (deckState.side.length) {
+    lines.push("");
+    deckState.side.forEach((card) => {
+      const name = card.nameJa || card.name || card.nameEn || "";
+      lines.push(`SB: ${card.quantity} ${name}`);
+    });
+  }
+  return lines.join("\n");
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("クリップボードにコピーしました。");
+  } catch (error) {
+    showToast("コピーできなかったため、ダウンロードします。");
+    downloadText(text, "decklist.txt");
+  }
+}
+
+function downloadText(text, filename) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 function countQty(list) {
   return list.reduce((sum, card) => sum + card.quantity, 0);
 }
@@ -1059,6 +1115,21 @@ if (exportPdf) {
     showToast("PDF出力の準備中...");
     // iOS Safari blocks async print; call immediately in the user gesture.
     window.print();
+  });
+}
+
+if (exportArena) {
+  exportArena.addEventListener("click", () => {
+    const text = buildArenaText();
+    copyToClipboard(text);
+  });
+}
+
+if (exportTxt) {
+  exportTxt.addEventListener("click", () => {
+    const text = buildJapaneseText();
+    downloadText(text, "decklist-ja.txt");
+    showToast("テキストをダウンロードしました。");
   });
 }
 
