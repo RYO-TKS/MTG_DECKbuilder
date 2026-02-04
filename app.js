@@ -120,6 +120,11 @@ function classifyType(typeLine) {
   if (/Land|土地/i.test(typeLine)) return "land";
   if (/Creature|クリーチャー/i.test(typeLine)) return "creature";
   if (/Artifact|アーティファクト/i.test(typeLine)) return "artifact";
+  if (/Enchantment|エンチャント/i.test(typeLine)) return "enchantment";
+  if (/Instant|インスタント/i.test(typeLine)) return "instant";
+  if (/Sorcery|ソーサリー/i.test(typeLine)) return "sorcery";
+  if (/Planeswalker|プレインズウォーカー/i.test(typeLine))
+    return "planeswalker";
   return "spell";
 }
 
