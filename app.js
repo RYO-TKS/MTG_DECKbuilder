@@ -902,9 +902,8 @@ if (exportPdf) {
   exportPdf.addEventListener("click", () => {
     updatePrintLayout();
     showToast("PDF出力の準備中...");
-    setTimeout(() => {
-      window.print();
-    }, 200);
+    // iOS Safari blocks async print; call immediately in the user gesture.
+    window.print();
   });
 }
 
