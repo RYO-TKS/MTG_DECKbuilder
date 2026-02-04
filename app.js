@@ -826,7 +826,9 @@ function updateStats(list) {
   if (statLand) statLand.textContent = `${countQty(lands)}`;
   if (statSpell) statSpell.textContent = `${countQty(spells)}`;
 
-  const cmcCards = list.filter((card) => typeof card.cmc === "number");
+  const cmcCards = list.filter(
+    (card) => typeof card.cmc === "number" && card.typeCategory !== "land"
+  );
   const cmcTotal = cmcCards.reduce(
     (sum, card) => sum + card.cmc * card.quantity,
     0
