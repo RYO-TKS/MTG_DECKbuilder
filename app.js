@@ -57,6 +57,7 @@ const goldfishStart = document.querySelector("#goldfish-start");
 const goldfishMulligan = document.querySelector("#goldfish-mulligan");
 const goldfishBottom = document.querySelector("#goldfish-bottom");
 const goldfishDraw = document.querySelector("#goldfish-draw");
+const goldfishNext = document.querySelector("#goldfish-next");
 const goldfishShuffle = document.querySelector("#goldfish-shuffle");
 const goldfishReset = document.querySelector("#goldfish-reset");
 const goldfishTurn = document.querySelector("#goldfish-turn");
@@ -914,6 +915,7 @@ function buildLibraryFromDeck() {
         id: `${card.nameEn || card.name}-${i}-${Math.random().toString(36).slice(2)}`,
         name,
         nameEn: card.nameEn || card.name,
+        imageUrl: card.imageUrl || "",
       });
     }
   });
@@ -1011,7 +1013,11 @@ function renderZone(list, container, actions) {
     if (goldfishState.selected.has(card.id)) {
       row.classList.add("selected");
     }
+    const thumbStyle = card.imageUrl
+      ? `style="background-image:url('${card.imageUrl}')"`
+      : "";
     row.innerHTML = `
+      <div class="zone-thumb" ${thumbStyle}></div>
       <span>${card.name}</span>
       <div class="zone-actions">
         ${actions
@@ -1331,6 +1337,14 @@ if (goldfishDraw) {
   });
 }
 
+if (goldfishNext) {
+  goldfishNext.addEventListener("click", () => {
+    goldfishState.turn += 1;
+    drawCards(1);
+    renderGoldfish();
+  });
+}
+
 if (goldfishShuffle) {
   goldfishShuffle.addEventListener("click", () => {
     shuffle(goldfishState.library);
@@ -1374,6 +1388,14 @@ if (goldfishHand) {
   });
 }
 
+if (goldfishHand) {
+  goldfishHand.addEventListener("click", (event) => {
+    const thumb = event.target.closest(".zone-thumb");
+    if (!thumb) return;
+    thumb.classList.toggle("is-zoomed");
+  });
+}
+
 if (goldfishBattlefield) {
   goldfishBattlefield.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
@@ -1382,6 +1404,14 @@ if (goldfishBattlefield) {
     const id = button.getAttribute("data-id");
     if (action === "hand") moveCard(id, "battlefield", "hand");
     if (action === "graveyard") moveCard(id, "battlefield", "graveyard");
+  });
+}
+
+if (goldfishBattlefield) {
+  goldfishBattlefield.addEventListener("click", (event) => {
+    const thumb = event.target.closest(".zone-thumb");
+    if (!thumb) return;
+    thumb.classList.toggle("is-zoomed");
   });
 }
 
@@ -1396,6 +1426,14 @@ if (goldfishGraveyard) {
   });
 }
 
+if (goldfishGraveyard) {
+  goldfishGraveyard.addEventListener("click", (event) => {
+    const thumb = event.target.closest(".zone-thumb");
+    if (!thumb) return;
+    thumb.classList.toggle("is-zoomed");
+  });
+}
+
 if (goldfishExile) {
   goldfishExile.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
@@ -1403,6 +1441,14 @@ if (goldfishExile) {
     const action = button.getAttribute("data-action");
     const id = button.getAttribute("data-id");
     if (action === "hand") moveCard(id, "exile", "hand");
+  });
+}
+
+if (goldfishExile) {
+  goldfishExile.addEventListener("click", (event) => {
+    const thumb = event.target.closest(".zone-thumb");
+    if (!thumb) return;
+    thumb.classList.toggle("is-zoomed");
   });
 }
 
