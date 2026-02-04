@@ -28,6 +28,16 @@ const statCreature = document.querySelector("#stat-creature");
 const statSpell = document.querySelector("#stat-spell");
 const statLand = document.querySelector("#stat-land");
 const statCmc = document.querySelector("#stat-cmc");
+const curve1 = document.querySelector("#curve-1");
+const curve2 = document.querySelector("#curve-2");
+const curve3 = document.querySelector("#curve-3");
+const curve4 = document.querySelector("#curve-4");
+const curve5 = document.querySelector("#curve-5");
+const colorW = document.querySelector("#color-w");
+const colorU = document.querySelector("#color-u");
+const colorB = document.querySelector("#color-b");
+const colorR = document.querySelector("#color-r");
+const colorG = document.querySelector("#color-g");
 const clearDeck = document.querySelector("#deck-clear");
 const printDate = document.querySelector("#print-date");
 const printPlayer = document.querySelector("#print-player");
@@ -280,6 +290,7 @@ function normalizeResultCard(card, nameJaOverride) {
     colors: card.colors || [],
     imageUrl: getCardImage(card),
     legalities: card.legalities || {},
+    colorIdentity: card.color_identity || [],
   };
 }
 
@@ -556,6 +567,9 @@ async function enrichDeckList(list) {
           typeLine,
           typeCategory: classifyType(typeLine),
           legalities: dataJa.legalities || {},
+          colors: dataJa.colors || [],
+          colorIdentity: dataJa.color_identity || [],
+          cmc: typeof dataJa.cmc === "number" ? dataJa.cmc : null,
         };
       }
       return {
@@ -565,6 +579,9 @@ async function enrichDeckList(list) {
         typeLine: "",
         typeCategory: "spell",
         legalities: {},
+        colors: [],
+        colorIdentity: [],
+        cmc: null,
       };
     }
 
@@ -578,6 +595,9 @@ async function enrichDeckList(list) {
         typeLine: "",
         typeCategory: "spell",
         legalities: {},
+        colors: [],
+        colorIdentity: [],
+        cmc: null,
       };
     }
 
@@ -592,6 +612,9 @@ async function enrichDeckList(list) {
       typeLine,
       typeCategory,
       legalities: data.legalities || {},
+      colors: data.colors || [],
+      colorIdentity: data.color_identity || [],
+      cmc: typeof data.cmc === "number" ? data.cmc : null,
     };
   });
 }
@@ -689,10 +712,68 @@ function renderDeck(main, side, container, emptyMessage) {
 function updateStats(list) {
   const total = countQty(list);
   if (statTotal) statTotal.textContent = `${total}`;
-  if (statCreature) statCreature.textContent = "0";
-  if (statSpell) statSpell.textContent = "0";
-  if (statLand) statLand.textContent = "0";
-  if (statCmc) statCmc.textContent = "-";
+  const creatures = list.filter((card) => card.typeCategory === "creature");
+  const lands = list.filter((card) => card.typeCategory === "land");
+  const spells = list.filter((card) => card.typeCategory === "spell");
+  if (statCreature) statCreature.textContent = `${countQty(creatures)}`;
+  if (statLand) statLand.textContent = `${countQty(lands)}`;
+  if (statSpell) statSpell.textContent = `${countQty(spells)}`;
+
+  const cmcCards = list.filter((card) => typeof card.cmc === "number");
+  const cmcTotal = cmcCards.reduce(
+    (sum, card) => sum + card.cmc * card.quantity,
+    0
+  );
+  const cmcCount = cmcCards.reduce((sum, card) => sum + card.quantity, 0);
+  if (statCmc) {
+    statCmc.textContent = cmcCount ? (cmcTotal / cmcCount).toFixed(2) : "-";
+  }
+
+  updateManaCurve(cmcCards);
+  updateColorDistribution(list);
+}
+
+function updateManaCurve(list) {
+  if (!curve1 || !curve2 || !curve3 || !curve4 || !curve5) return;
+  const buckets = [0, 0, 0, 0, 0];
+  list.forEach((card) => {
+    const cmc = Math.floor(card.cmc || 0);
+    if (cmc <= 1) buckets[0] += card.quantity;
+    else if (cmc === 2) buckets[1] += card.quantity;
+    else if (cmc === 3) buckets[2] += card.quantity;
+    else if (cmc === 4) buckets[3] += card.quantity;
+    else buckets[4] += card.quantity;
+  });
+  const max = Math.max(...buckets, 1);
+  const heights = buckets.map((count) => `${Math.round((count / max) * 100)}%`);
+  curve1.style.height = heights[0];
+  curve2.style.height = heights[1];
+  curve3.style.height = heights[2];
+  curve4.style.height = heights[3];
+  curve5.style.height = heights[4];
+  curve1.textContent = "1";
+  curve2.textContent = "2";
+  curve3.textContent = "3";
+  curve4.textContent = "4";
+  curve5.textContent = "5+";
+}
+
+function updateColorDistribution(list) {
+  const total = countQty(list);
+  const counts = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  list.forEach((card) => {
+    const colors = card.colorIdentity && card.colorIdentity.length ? card.colorIdentity : card.colors || [];
+    colors.forEach((c) => {
+      if (counts[c] !== undefined) counts[c] += card.quantity;
+    });
+  });
+  const pct = (key) =>
+    total ? Math.round((counts[key] / total) * 100) : 0;
+  if (colorW) colorW.textContent = `${pct("W")}%`;
+  if (colorU) colorU.textContent = `${pct("U")}%`;
+  if (colorB) colorB.textContent = `${pct("B")}%`;
+  if (colorR) colorR.textContent = `${pct("R")}%`;
+  if (colorG) colorG.textContent = `${pct("G")}%`;
 }
 
 function updateSummary(mainCount, sideCount) {
