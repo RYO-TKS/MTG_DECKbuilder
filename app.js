@@ -95,6 +95,7 @@ function normalizeNameKey(text) {
   return normalizeLine(text)
     .replace(/^["'「『《\[]+/, "")
     .replace(/["'」』》\]]+$/, "")
+    .replace(/[’‘]/g, "'")
     .toLowerCase();
 }
 
@@ -186,14 +187,15 @@ async function fetchScryfallCardJa(name) {
 }
 
 async function fetchJapaneseName(name) {
+  const normalized = name.replace(/[’‘]/g, "'").trim();
   const exactUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(
-    name
+    normalized
   )}&lang=ja`;
   const fuzzyUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(
-    name
+    normalized
   )}&lang=ja`;
   const searchUrl = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
-    `!"${name}" lang:ja`
+    `!"${normalized}" lang:ja`
   )}`;
 
   async function extractPrintedName(res) {
@@ -309,9 +311,19 @@ function normalizeResultCard(card, nameJaOverride) {
 
 async function resolveJapaneseName(card) {
   if (card.lang === "ja" && card.printed_name) return card.printed_name;
-  const dictName = translateFromDictionary(card.name || "");
+  const name = (card.name || "").replace(/[’‘]/g, "'");
+  if (name.includes("//")) {
+    const parts = name.split("//").map((part) => part.trim());
+    const translatedParts = await Promise.all(
+      parts.map((part) => fetchJapaneseName(part))
+    );
+    if (translatedParts.every(Boolean)) {
+      return translatedParts.join(" / ");
+    }
+  }
+  const dictName = translateFromDictionary(name);
   if (dictName) return dictName;
-  return fetchJapaneseName(card.name || "");
+  return fetchJapaneseName(name);
 }
 
 async function runSearch(query) {
