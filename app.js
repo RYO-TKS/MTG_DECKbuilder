@@ -69,6 +69,9 @@ const goldfishHand = document.querySelector("#goldfish-hand");
 const goldfishBattlefield = document.querySelector("#goldfish-battlefield");
 const goldfishGraveyard = document.querySelector("#goldfish-graveyard");
 const goldfishExile = document.querySelector("#goldfish-exile");
+const goldfishLibraryPick = document.querySelector("#goldfish-library-pick");
+const goldfishLibraryOptions = document.querySelector("#goldfish-library-options");
+const goldfishPlayFromDeck = document.querySelector("#goldfish-play-from-deck");
 const builderViews = document.querySelectorAll(".view-builder");
 const goldfishViews = document.querySelectorAll(".view-goldfish");
 
@@ -1189,6 +1192,22 @@ function renderGoldfish() {
   renderZone(goldfishState.exile, goldfishExile, [
     { action: "hand", label: "手札" },
   ]);
+
+  if (goldfishLibraryOptions) {
+    const counts = new Map();
+    goldfishState.library.forEach((card) => {
+      counts.set(card.name, (counts.get(card.name) || 0) + 1);
+    });
+    goldfishLibraryOptions.innerHTML = "";
+    Array.from(counts.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .forEach(([name, count]) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = `${name} (${count})`;
+        goldfishLibraryOptions.appendChild(option);
+      });
+  }
 }
 
 function renderPrintGroup(target, title, list) {
@@ -1515,6 +1534,26 @@ if (goldfishReset) {
     goldfishState.mulligans = 0;
     goldfishState.bottomPending = 0;
     goldfishState.selected.clear();
+    renderGoldfish();
+  });
+}
+
+if (goldfishPlayFromDeck) {
+  goldfishPlayFromDeck.addEventListener("click", () => {
+    const targetName = goldfishLibraryPick ? goldfishLibraryPick.value.trim() : "";
+    if (!targetName) {
+      showToast("カード名を入力してください。");
+      return;
+    }
+    const index = goldfishState.library.findIndex((card) => card.name === targetName);
+    if (index === -1) {
+      showToast("デッキにカードがありません。");
+      return;
+    }
+    snapshotGoldfish();
+    const [card] = goldfishState.library.splice(index, 1);
+    goldfishState.battlefield.push(card);
+    if (goldfishLibraryPick) goldfishLibraryPick.value = "";
     renderGoldfish();
   });
 }

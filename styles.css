@@ -635,6 +635,13 @@ button:hover {
   margin-bottom: 12px;
 }
 
+.goldfish-pick {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .goldfish-zones {
   display: grid;
   gap: 12px;
