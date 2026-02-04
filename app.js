@@ -312,8 +312,8 @@ function normalizeResultCard(card, nameJaOverride) {
 async function resolveJapaneseName(card) {
   if (card.lang === "ja" && card.printed_name) return card.printed_name;
   const name = (card.name || "").replace(/[’‘]/g, "'");
-  if (name.includes("//")) {
-    const parts = name.split("//").map((part) => part.trim());
+  if (name.includes("//") || name.includes(" / ")) {
+    const parts = name.split(/\s*\/\/\s*|\s*\/\s*/).map((part) => part.trim());
     const translatedParts = await Promise.all(
       parts.map((part) => fetchJapaneseName(part))
     );
@@ -461,7 +461,7 @@ function parseDictionary(text) {
 
 function translateFromDictionary(name) {
   if (!dictionaryMap) return null;
-  const split = name.split(/\s*\/\/\s*/);
+  const split = name.split(/\s*\/\/\s*|\s*\/\s*/);
   if (split.length > 1) {
     const translated = split.map((part) => translateFromDictionary(part));
     if (translated.every(Boolean)) return translated.join(" / ");
