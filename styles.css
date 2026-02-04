@@ -683,6 +683,24 @@ button:hover {
   display: none;
 }
 
+.capture-print .print-sheet {
+  display: block;
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  background: #ffffff;
+  color: #111111;
+  padding: 12mm;
+}
+
+.capture-print .app-header,
+.capture-print .layout,
+.capture-print .app-footer,
+.capture-print .toast,
+.capture-print .bg-orbit {
+  display: none;
+}
+
 @media print {
   @page {
     size: A4;

@@ -912,9 +912,7 @@ if (clearDeck) {
 if (exportPdf) {
   exportPdf.addEventListener("click", () => {
     updatePrintLayout();
-    showToast("PDF出力の準備中...");
-    // iOS Safari blocks async print; call immediately in the user gesture.
-    window.print();
+    generatePdf();
   });
 }
 
@@ -1030,4 +1028,43 @@ if ("serviceWorker" in navigator) {
       console.warn("Service worker registration failed", err);
     });
   });
+}
+
+async function generatePdf() {
+  if (!window.html2canvas || !window.jspdf) {
+    showToast("PDFライブラリの読み込みに失敗しました。");
+    return;
+  }
+  showToast("PDF出力の準備中...");
+  document.body.classList.add("capture-print");
+  const target = document.querySelector(".print-sheet");
+  if (!target) {
+    document.body.classList.remove("capture-print");
+    showToast("PDF出力に失敗しました。");
+    return;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const canvas = await window.html2canvas(target, {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+  });
+  const imgData = canvas.toDataURL("image/png");
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  const y = Math.max(0, (pageHeight - imgHeight) / 2);
+  pdf.addImage(imgData, "PNG", 0, y, imgWidth, imgHeight, undefined, "FAST");
+  document.body.classList.remove("capture-print");
+
+  const blob = pdf.output("blob");
+  const blobUrl = URL.createObjectURL(blob);
+  const opened = window.open(blobUrl, "_blank");
+  if (!opened) {
+    pdf.save("mtg-decklist.pdf");
+  }
 }
