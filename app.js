@@ -866,10 +866,10 @@ function updatePrintLayout() {
   if (printPlayer) printPlayer.textContent = player || "-";
   if (printDay) printDay.textContent = pdfDate ? pdfDate.value || dateString : dateString;
 
-  const mainVisible = filterByFormat(deckState.main);
-  const sideVisible = filterByFormat(deckState.side);
-  const mainCount = countQty(mainVisible);
-  const sideCount = countQty(sideVisible);
+  const mainVisible = deckState.main;
+  const sideVisible = deckState.side;
+  const mainCount = countQty(deckState.main);
+  const sideCount = countQty(deckState.side);
   if (printMainCount) printMainCount.textContent = `${mainCount}`;
   if (printSideCount) printSideCount.textContent = `${sideCount}`;
   if (printCreatureCount) {
