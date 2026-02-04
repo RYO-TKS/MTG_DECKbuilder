@@ -407,6 +407,46 @@ button:hover {
   border: 1px solid var(--stroke);
 }
 
+.deck-row.color-w {
+  border-color: rgba(245, 241, 207, 0.7);
+  background: rgba(245, 241, 207, 0.12);
+}
+
+.deck-row.color-u {
+  border-color: rgba(131, 167, 255, 0.7);
+  background: rgba(131, 167, 255, 0.12);
+}
+
+.deck-row.color-b {
+  border-color: rgba(122, 102, 192, 0.7);
+  background: rgba(122, 102, 192, 0.12);
+}
+
+.deck-row.color-r {
+  border-color: rgba(224, 122, 95, 0.7);
+  background: rgba(224, 122, 95, 0.12);
+}
+
+.deck-row.color-g {
+  border-color: rgba(131, 196, 123, 0.7);
+  background: rgba(131, 196, 123, 0.12);
+}
+
+.deck-row.gold {
+  border-color: rgba(224, 168, 82, 0.8);
+  background: rgba(224, 168, 82, 0.16);
+}
+
+.deck-row.colorless {
+  border-color: rgba(200, 200, 200, 0.5);
+  background: rgba(200, 200, 200, 0.08);
+}
+
+.deck-row.artifact {
+  border-color: rgba(166, 114, 68, 0.85);
+  background: rgba(166, 114, 68, 0.16);
+}
+
 .deck-row h4 {
   font-size: 16px;
 }

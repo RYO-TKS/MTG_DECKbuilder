@@ -784,6 +784,8 @@ function renderDeck(main, side, container, emptyMessage) {
   main.forEach((card) => {
     const row = document.createElement("div");
     row.className = "deck-row";
+    const colorClass = getCardColorClass(card);
+    if (colorClass) row.classList.add(colorClass);
     row.innerHTML = `
       <div>
         <h4>${card.name}</h4>
@@ -805,6 +807,8 @@ function renderDeck(main, side, container, emptyMessage) {
     side.forEach((card) => {
       const row = document.createElement("div");
       row.className = "deck-row";
+      const colorClass = getCardColorClass(card);
+      if (colorClass) row.classList.add(colorClass);
       row.innerHTML = `
         <div>
           <h4>${card.name}</h4>
