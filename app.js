@@ -95,7 +95,7 @@ function normalizeNameKey(text) {
   return normalizeLine(text)
     .replace(/^["'「『《\[]+/, "")
     .replace(/["'」』》\]]+$/, "")
-    .replace(/[’‘]/g, "'")
+    .replace(/[’‘ʼʻ]/g, "'")
     .toLowerCase();
 }
 
@@ -455,6 +455,10 @@ function parseDictionary(text) {
     const key = normalizeNameKey(englishToken.replace(/\s*\([^)]*\)\s*$/, ""));
     if (!key) continue;
     map.set(key, japaneseToken);
+    const altKey = key.replace(/'/g, "");
+    if (altKey && !map.has(altKey)) {
+      map.set(altKey, japaneseToken);
+    }
   }
   return map;
 }
@@ -467,7 +471,9 @@ function translateFromDictionary(name) {
     if (translated.every(Boolean)) return translated.join(" / ");
   }
   const direct = dictionaryMap.get(normalizeNameKey(name));
-  return direct || null;
+  if (direct) return direct;
+  const altKey = normalizeNameKey(name).replace(/'/g, "");
+  return dictionaryMap.get(altKey) || null;
 }
 
 function openDictDb() {
