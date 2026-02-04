@@ -203,6 +203,25 @@ async function fetchScryfallCard(name) {
   }
 }
 
+async function fetchSpmByOracle(oracleId) {
+  const key = `spm:${oracleId}`;
+  if (scryfallCache.has(key)) return scryfallCache.get(key);
+  const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
+    `oracleid:${oracleId} set:spm`
+  )}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("not found");
+    const data = await res.json();
+    const card = data.data && data.data.length ? data.data[0] : null;
+    scryfallCache.set(key, card);
+    return card;
+  } catch (error) {
+    scryfallCache.set(key, null);
+    return null;
+  }
+}
+
 async function fetchScryfallCardJa(name) {
   const key = `ja:${name.toLowerCase()}`;
   if (scryfallCache.has(key)) return scryfallCache.get(key);
@@ -360,6 +379,12 @@ function normalizeResultCard(card, nameJaOverride) {
 
 async function resolveJapaneseName(card) {
   if (card.lang === "ja" && card.printed_name) return card.printed_name;
+  if (card.set === "om1" && card.oracle_id) {
+    const spmCard = await fetchSpmByOracle(card.oracle_id);
+    if (spmCard) {
+      return spmCard.printed_name || spmCard.name || null;
+    }
+  }
   const name = (card.name || "").replace(/[’‘]/g, "'");
   if (name.includes("//") || name.includes(" / ")) {
     const parts = name.split(/\s*\/\/\s*|\s*\/\s*/).map((part) => part.trim());
@@ -642,17 +667,24 @@ async function enrichDeckList(list) {
       const dataJa = await fetchScryfallCardJa(nameEn);
       if (dataJa) {
         const typeLine = dataJa.type_line || "";
+        const spmCard =
+          dataJa.set === "om1" && dataJa.oracle_id
+            ? await fetchSpmByOracle(dataJa.oracle_id)
+            : null;
         return {
           ...card,
-          nameEn: dataJa.name || nameEn,
-          nameJa: dataJa.printed_name || nameEn,
+          nameEn: (spmCard && spmCard.name) || dataJa.name || nameEn,
+          nameJa:
+            (spmCard && (spmCard.printed_name || spmCard.name)) ||
+            dataJa.printed_name ||
+            nameEn,
           typeLine,
           typeCategory: classifyType(typeLine),
           legalities: dataJa.legalities || {},
           colors: dataJa.colors || [],
           colorIdentity: dataJa.color_identity || [],
           cmc: typeof dataJa.cmc === "number" ? dataJa.cmc : null,
-          imageUrl: getCardImage(dataJa),
+          imageUrl: getCardImage(spmCard || dataJa),
           manaCost: dataJa.mana_cost || "",
           power:
             typeof dataJa.power === "string"
@@ -704,19 +736,26 @@ async function enrichDeckList(list) {
 
     const typeLine = data.type_line || "";
     const typeCategory = classifyType(typeLine);
+    const spmCard =
+      data.set === "om1" && data.oracle_id
+        ? await fetchSpmByOracle(data.oracle_id)
+        : null;
     const nameJa = dictName || (await fetchJapaneseName(nameEn));
 
     return {
       ...card,
-      nameEn,
-      nameJa: nameJa || null,
+      nameEn: (spmCard && spmCard.name) || nameEn,
+      nameJa:
+        (spmCard && (spmCard.printed_name || spmCard.name)) ||
+        nameJa ||
+        null,
       typeLine,
       typeCategory,
       legalities: data.legalities || {},
       colors: data.colors || [],
       colorIdentity: data.color_identity || [],
       cmc: typeof data.cmc === "number" ? data.cmc : null,
-      imageUrl: getCardImage(data),
+      imageUrl: getCardImage(spmCard || data),
       manaCost: data.mana_cost || "",
       power:
         typeof data.power === "string"
