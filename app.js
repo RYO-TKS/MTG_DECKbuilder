@@ -1058,6 +1058,7 @@ function moveCard(cardId, from, to) {
 
 function getCardColorClass(card) {
   if (/Land|土地/i.test(card.typeLine || "")) return "";
+  if (/Artifact|アーティファクト/i.test(card.typeLine || "")) return "artifact";
   const colors =
     (card.colorIdentity && card.colorIdentity.length
       ? card.colorIdentity
