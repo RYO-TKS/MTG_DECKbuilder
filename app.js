@@ -967,6 +967,7 @@ function buildLibraryFromDeck() {
         imageUrl: card.imageUrl || "",
         manaCost: card.manaCost || "",
         typeLine: card.typeLine || "",
+        cmc: typeof card.cmc === "number" ? card.cmc : null,
         power: card.power || null,
         toughness: card.toughness || null,
       });
@@ -1100,7 +1101,17 @@ function renderGoldfish() {
     goldfishBottomNote.textContent = `マリガン後にボトムする枚数: ${goldfishState.bottomPending}`;
   }
 
-  renderZone(goldfishState.hand, goldfishHand, [
+  const handSorted = [...goldfishState.hand].sort((a, b) => {
+    const aIsLand = /Land|土地/i.test(a.typeLine || "");
+    const bIsLand = /Land|土地/i.test(b.typeLine || "");
+    if (aIsLand !== bIsLand) return aIsLand ? -1 : 1;
+    const aCmc = typeof a.cmc === "number" ? a.cmc : 99;
+    const bCmc = typeof b.cmc === "number" ? b.cmc : 99;
+    if (aCmc !== bCmc) return aCmc - bCmc;
+    return (a.name || "").localeCompare(b.name || "");
+  });
+
+  renderZone(handSorted, goldfishHand, [
     { action: "select", label: "選択" },
     { action: "battlefield", label: "戦場" },
     { action: "graveyard", label: "墓地" },
