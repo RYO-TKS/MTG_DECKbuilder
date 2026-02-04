@@ -59,6 +59,7 @@ const goldfishMulligan = document.querySelector("#goldfish-mulligan");
 const goldfishBottom = document.querySelector("#goldfish-bottom");
 const goldfishDraw = document.querySelector("#goldfish-draw");
 const goldfishNext = document.querySelector("#goldfish-next");
+const goldfishUndo = document.querySelector("#goldfish-undo");
 const goldfishShuffle = document.querySelector("#goldfish-shuffle");
 const goldfishReset = document.querySelector("#goldfish-reset");
 const goldfishTurn = document.querySelector("#goldfish-turn");
@@ -92,6 +93,7 @@ const goldfishState = {
   bottomPending: 0,
   selected: new Set(),
 };
+const goldfishHistory = [];
 const DICT_URL_KEY = "mtg.dict.url";
 const DICT_AUTO_KEY = "mtg.dict.auto";
 const DICT_UPDATED_KEY = "mtg.dict.updated";
@@ -958,6 +960,35 @@ function shuffle(array) {
   }
 }
 
+function snapshotGoldfish() {
+  goldfishHistory.push({
+    library: structuredClone(goldfishState.library),
+    hand: structuredClone(goldfishState.hand),
+    battlefield: structuredClone(goldfishState.battlefield),
+    graveyard: structuredClone(goldfishState.graveyard),
+    exile: structuredClone(goldfishState.exile),
+    turn: goldfishState.turn,
+    mulligans: goldfishState.mulligans,
+    bottomPending: goldfishState.bottomPending,
+    selected: new Set(goldfishState.selected),
+  });
+}
+
+function restoreGoldfish() {
+  const prev = goldfishHistory.pop();
+  if (!prev) return;
+  goldfishState.library = prev.library;
+  goldfishState.hand = prev.hand;
+  goldfishState.battlefield = prev.battlefield;
+  goldfishState.graveyard = prev.graveyard;
+  goldfishState.exile = prev.exile;
+  goldfishState.turn = prev.turn;
+  goldfishState.mulligans = prev.mulligans;
+  goldfishState.bottomPending = prev.bottomPending;
+  goldfishState.selected = prev.selected;
+  renderGoldfish();
+}
+
 function buildLibraryFromDeck() {
   const library = [];
   deckState.main.forEach((card) => {
@@ -991,6 +1022,7 @@ function drawCards(count) {
 }
 
 function startGoldfish() {
+  goldfishHistory.length = 0;
   goldfishState.library = buildLibraryFromDeck();
   goldfishState.hand = [];
   goldfishState.battlefield = [];
@@ -1006,6 +1038,7 @@ function startGoldfish() {
 }
 
 function mulliganGoldfish() {
+  snapshotGoldfish();
   const allCards = [
     ...goldfishState.library,
     ...goldfishState.hand,
@@ -1028,6 +1061,7 @@ function mulliganGoldfish() {
 
 function confirmBottom() {
   if (!goldfishState.bottomPending) return;
+  snapshotGoldfish();
   const selectedIds = new Set(goldfishState.selected);
   if (!selectedIds.size) return;
   const remaining = [];
@@ -1050,6 +1084,7 @@ function confirmBottom() {
 }
 
 function moveCard(cardId, from, to) {
+  snapshotGoldfish();
   const fromList = goldfishState[from];
   const toList = goldfishState[to];
   const index = fromList.findIndex((card) => card.id === cardId);
@@ -1435,6 +1470,7 @@ if (goldfishBottom) {
 
 if (goldfishDraw) {
   goldfishDraw.addEventListener("click", () => {
+    snapshotGoldfish();
     drawCards(1);
     renderGoldfish();
   });
@@ -1442,14 +1478,22 @@ if (goldfishDraw) {
 
 if (goldfishNext) {
   goldfishNext.addEventListener("click", () => {
+    snapshotGoldfish();
     goldfishState.turn += 1;
     drawCards(1);
     renderGoldfish();
   });
 }
 
+if (goldfishUndo) {
+  goldfishUndo.addEventListener("click", () => {
+    restoreGoldfish();
+  });
+}
+
 if (goldfishShuffle) {
   goldfishShuffle.addEventListener("click", () => {
+    snapshotGoldfish();
     shuffle(goldfishState.library);
     renderGoldfish();
   });
@@ -1457,6 +1501,7 @@ if (goldfishShuffle) {
 
 if (goldfishReset) {
   goldfishReset.addEventListener("click", () => {
+    goldfishHistory.length = 0;
     goldfishState.library = [];
     goldfishState.hand = [];
     goldfishState.battlefield = [];
