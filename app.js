@@ -1125,7 +1125,6 @@ function renderZone(list, container, actions) {
   list.forEach((card) => {
     const row = document.createElement("div");
     row.className = "zone-card";
-    if (card.tapped) row.classList.add("tapped");
     if (container === goldfishHand) {
       const colorClass = getCardColorClass(card);
       if (colorClass) row.classList.add(colorClass);
@@ -1136,10 +1135,11 @@ function renderZone(list, container, actions) {
     const thumbStyle = card.imageUrl
       ? `style="background-image:url('${card.imageUrl}')"`
       : "";
+    const thumbClass = card.tapped ? "zone-thumb tapped" : "zone-thumb";
     const pt =
       card.power && card.toughness ? ` ${card.power}/${card.toughness}` : "";
     row.innerHTML = `
-      <div class="zone-thumb" ${thumbStyle}></div>
+      <div class="${thumbClass}" ${thumbStyle}></div>
       <div>
         <div>${card.name}</div>
         <div class="zone-meta">${card.manaCost || "—"} · ${
@@ -1184,7 +1184,7 @@ function renderGoldfish() {
     { action: "exile", label: "追放" },
   ]);
   renderZone(goldfishState.battlefield, goldfishBattlefield, [
-    { action: "tap", label: "タップ" },
+    { action: "tap", label: "タップ/解除" },
     { action: "hand", label: "手札" },
     { action: "graveyard", label: "墓地" },
   ]);
@@ -1506,6 +1506,9 @@ if (goldfishNext) {
   goldfishNext.addEventListener("click", () => {
     snapshotGoldfish();
     goldfishState.turn += 1;
+    goldfishState.battlefield.forEach((card) => {
+      card.tapped = false;
+    });
     drawCards(1);
     renderGoldfish();
   });

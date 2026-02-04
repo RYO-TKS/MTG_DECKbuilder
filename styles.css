@@ -747,7 +747,7 @@ button:hover {
   background: rgba(224, 168, 82, 0.12);
 }
 
-.zone-card.tapped {
+.zone-thumb.tapped {
   transform: rotate(-90deg);
   transform-origin: center;
 }
