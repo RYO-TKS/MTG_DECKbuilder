@@ -934,6 +934,26 @@ function buildJapaneseText() {
   return lines.join("\n");
 }
 
+function formatGoldfishName(name) {
+  return name.replace(/\s*\/\/\s*|\s*\/\s*/g, "/");
+}
+
+function buildGoldfishText() {
+  const lines = [];
+  deckState.main.forEach((card) => {
+    const name = formatGoldfishName(card.nameEn || card.name || "");
+    lines.push(`${card.quantity} ${name}`);
+  });
+  if (deckState.side.length) {
+    lines.push("");
+    deckState.side.forEach((card) => {
+      const name = formatGoldfishName(card.nameEn || card.name || "");
+      lines.push(`${card.quantity} ${name}`);
+    });
+  }
+  return lines.join("\n");
+}
+
 async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
@@ -1476,8 +1496,8 @@ if (exportArena) {
 
 if (exportTxt) {
   exportTxt.addEventListener("click", () => {
-    const text = buildJapaneseText();
-    downloadText(text, "decklist-ja.txt");
+    const text = buildGoldfishText();
+    downloadText(text, "decklist.txt");
     showToast("テキストをダウンロードしました。");
   });
 }
