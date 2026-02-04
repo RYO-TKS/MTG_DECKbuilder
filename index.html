@@ -225,6 +225,44 @@
         </div>
       </section>
 
+      <section class="card panel goldfish" aria-labelledby="goldfish-title">
+        <div class="panel-head">
+          <h2 id="goldfish-title">一人回し</h2>
+          <p>デッキをシャッフルして初手やドローを確認できます。</p>
+        </div>
+        <div class="goldfish-controls">
+          <button class="primary" id="goldfish-start">開始</button>
+          <button class="ghost" id="goldfish-mulligan">マリガン</button>
+          <button class="ghost" id="goldfish-bottom">選択をボトムへ</button>
+          <button class="ghost" id="goldfish-draw">1枚ドロー</button>
+          <button class="ghost" id="goldfish-shuffle">シャッフル</button>
+          <button class="danger" id="goldfish-reset">リセット</button>
+        </div>
+        <div class="goldfish-meta">
+          <span>ターン: <strong id="goldfish-turn">1</strong></span>
+          <span>ライブラリ: <strong id="goldfish-library">0</strong>枚</span>
+          <span id="goldfish-bottom-note">マリガン後にボトムする枚数: 0</span>
+        </div>
+        <div class="goldfish-zones">
+          <div class="zone">
+            <h3>手札</h3>
+            <div class="zone-list" id="goldfish-hand"></div>
+          </div>
+          <div class="zone">
+            <h3>戦場</h3>
+            <div class="zone-list" id="goldfish-battlefield"></div>
+          </div>
+          <div class="zone">
+            <h3>墓地</h3>
+            <div class="zone-list" id="goldfish-graveyard"></div>
+          </div>
+          <div class="zone">
+            <h3>追放</h3>
+            <div class="zone-list" id="goldfish-exile"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="card panel io" aria-labelledby="io-title">
         <div class="panel-head">
           <h2 id="io-title">インポート / エクスポート</h2>

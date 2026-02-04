@@ -550,6 +550,72 @@ button:hover {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.goldfish-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.goldfish-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.goldfish-zones {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.zone {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: rgba(34, 39, 36, 0.6);
+  border: 1px solid var(--stroke);
+}
+
+.zone h3 {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.zone-list {
+  display: grid;
+  gap: 6px;
+}
+
+.zone-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  font-size: 12px;
+}
+
+.zone-card.selected {
+  border-color: rgba(224, 168, 82, 0.6);
+  background: rgba(224, 168, 82, 0.12);
+}
+
+.zone-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.zone-actions button {
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
 .io-box {
   padding: 16px;
   border-radius: var(--radius-md);

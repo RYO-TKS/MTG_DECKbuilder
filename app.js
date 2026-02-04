@@ -53,6 +53,19 @@ const printMainList = document.querySelector("#print-main-list");
 const printMainList2 = document.querySelector("#print-main-list-2");
 const printSideList = document.querySelector("#print-side-list");
 const printSideList2 = document.querySelector("#print-side-list-2");
+const goldfishStart = document.querySelector("#goldfish-start");
+const goldfishMulligan = document.querySelector("#goldfish-mulligan");
+const goldfishBottom = document.querySelector("#goldfish-bottom");
+const goldfishDraw = document.querySelector("#goldfish-draw");
+const goldfishShuffle = document.querySelector("#goldfish-shuffle");
+const goldfishReset = document.querySelector("#goldfish-reset");
+const goldfishTurn = document.querySelector("#goldfish-turn");
+const goldfishLibrary = document.querySelector("#goldfish-library");
+const goldfishBottomNote = document.querySelector("#goldfish-bottom-note");
+const goldfishHand = document.querySelector("#goldfish-hand");
+const goldfishBattlefield = document.querySelector("#goldfish-battlefield");
+const goldfishGraveyard = document.querySelector("#goldfish-graveyard");
+const goldfishExile = document.querySelector("#goldfish-exile");
 
 const deckState = {
   main: [],
@@ -64,6 +77,17 @@ let dictionaryMap = null;
 let searchTimer = null;
 const lastSearchResults = new Map();
 let activeSearchFilter = "all";
+const goldfishState = {
+  library: [],
+  hand: [],
+  battlefield: [],
+  graveyard: [],
+  exile: [],
+  turn: 1,
+  mulligans: 0,
+  bottomPending: 0,
+  selected: new Set(),
+};
 const DICT_URL_KEY = "mtg.dict.url";
 const DICT_AUTO_KEY = "mtg.dict.auto";
 const DICT_UPDATED_KEY = "mtg.dict.updated";
@@ -874,6 +898,161 @@ function countQty(list) {
   return list.reduce((sum, card) => sum + card.quantity, 0);
 }
 
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+function buildLibraryFromDeck() {
+  const library = [];
+  deckState.main.forEach((card) => {
+    const name = card.nameJa || card.name || card.nameEn || "";
+    for (let i = 0; i < card.quantity; i += 1) {
+      library.push({
+        id: `${card.nameEn || card.name}-${i}-${Math.random().toString(36).slice(2)}`,
+        name,
+        nameEn: card.nameEn || card.name,
+      });
+    }
+  });
+  return library;
+}
+
+function drawCards(count) {
+  const drawn = [];
+  for (let i = 0; i < count; i += 1) {
+    if (!goldfishState.library.length) break;
+    drawn.push(goldfishState.library.pop());
+  }
+  goldfishState.hand.push(...drawn);
+}
+
+function startGoldfish() {
+  goldfishState.library = buildLibraryFromDeck();
+  goldfishState.hand = [];
+  goldfishState.battlefield = [];
+  goldfishState.graveyard = [];
+  goldfishState.exile = [];
+  goldfishState.turn = 1;
+  goldfishState.mulligans = 0;
+  goldfishState.bottomPending = 0;
+  goldfishState.selected.clear();
+  shuffle(goldfishState.library);
+  drawCards(7);
+  renderGoldfish();
+}
+
+function mulliganGoldfish() {
+  const allCards = [
+    ...goldfishState.library,
+    ...goldfishState.hand,
+    ...goldfishState.battlefield,
+    ...goldfishState.graveyard,
+    ...goldfishState.exile,
+  ];
+  goldfishState.library = allCards;
+  goldfishState.hand = [];
+  goldfishState.battlefield = [];
+  goldfishState.graveyard = [];
+  goldfishState.exile = [];
+  goldfishState.mulligans += 1;
+  goldfishState.bottomPending = goldfishState.mulligans;
+  goldfishState.selected.clear();
+  shuffle(goldfishState.library);
+  drawCards(7);
+  renderGoldfish();
+}
+
+function confirmBottom() {
+  if (!goldfishState.bottomPending) return;
+  const selectedIds = new Set(goldfishState.selected);
+  if (!selectedIds.size) return;
+  const remaining = [];
+  const bottomed = [];
+  goldfishState.hand.forEach((card) => {
+    if (selectedIds.has(card.id)) {
+      bottomed.push(card);
+    } else {
+      remaining.push(card);
+    }
+  });
+  goldfishState.hand = remaining;
+  goldfishState.library = bottomed.concat(goldfishState.library);
+  goldfishState.bottomPending = Math.max(
+    0,
+    goldfishState.bottomPending - bottomed.length
+  );
+  goldfishState.selected.clear();
+  renderGoldfish();
+}
+
+function moveCard(cardId, from, to) {
+  const fromList = goldfishState[from];
+  const toList = goldfishState[to];
+  const index = fromList.findIndex((card) => card.id === cardId);
+  if (index === -1) return;
+  const [card] = fromList.splice(index, 1);
+  toList.push(card);
+  renderGoldfish();
+}
+
+function renderZone(list, container, actions) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!list.length) {
+    container.innerHTML = '<div class="search-empty">カードなし</div>';
+    return;
+  }
+  list.forEach((card) => {
+    const row = document.createElement("div");
+    row.className = "zone-card";
+    if (goldfishState.selected.has(card.id)) {
+      row.classList.add("selected");
+    }
+    row.innerHTML = `
+      <span>${card.name}</span>
+      <div class="zone-actions">
+        ${actions
+          .map(
+            (action) =>
+              `<button data-action="${action.action}" data-id="${card.id}">${action.label}</button>`
+          )
+          .join("")}
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function renderGoldfish() {
+  if (goldfishTurn) goldfishTurn.textContent = `${goldfishState.turn}`;
+  if (goldfishLibrary)
+    goldfishLibrary.textContent = `${goldfishState.library.length}`;
+  if (goldfishBottomNote) {
+    goldfishBottomNote.textContent = `マリガン後にボトムする枚数: ${goldfishState.bottomPending}`;
+  }
+
+  renderZone(goldfishState.hand, goldfishHand, [
+    { action: "select", label: "選択" },
+    { action: "battlefield", label: "戦場" },
+    { action: "graveyard", label: "墓地" },
+    { action: "exile", label: "追放" },
+  ]);
+  renderZone(goldfishState.battlefield, goldfishBattlefield, [
+    { action: "hand", label: "手札" },
+    { action: "graveyard", label: "墓地" },
+  ]);
+  renderZone(goldfishState.graveyard, goldfishGraveyard, [
+    { action: "hand", label: "手札" },
+    { action: "battlefield", label: "戦場" },
+  ]);
+  renderZone(goldfishState.exile, goldfishExile, [
+    { action: "hand", label: "手札" },
+  ]);
+}
+
 function renderPrintGroup(target, title, list) {
   if (!target) return;
   const group = document.createElement("div");
@@ -1130,6 +1309,100 @@ if (exportTxt) {
     const text = buildJapaneseText();
     downloadText(text, "decklist-ja.txt");
     showToast("テキストをダウンロードしました。");
+  });
+}
+
+if (goldfishStart) {
+  goldfishStart.addEventListener("click", startGoldfish);
+}
+
+if (goldfishMulligan) {
+  goldfishMulligan.addEventListener("click", mulliganGoldfish);
+}
+
+if (goldfishBottom) {
+  goldfishBottom.addEventListener("click", confirmBottom);
+}
+
+if (goldfishDraw) {
+  goldfishDraw.addEventListener("click", () => {
+    drawCards(1);
+    renderGoldfish();
+  });
+}
+
+if (goldfishShuffle) {
+  goldfishShuffle.addEventListener("click", () => {
+    shuffle(goldfishState.library);
+    renderGoldfish();
+  });
+}
+
+if (goldfishReset) {
+  goldfishReset.addEventListener("click", () => {
+    goldfishState.library = [];
+    goldfishState.hand = [];
+    goldfishState.battlefield = [];
+    goldfishState.graveyard = [];
+    goldfishState.exile = [];
+    goldfishState.turn = 1;
+    goldfishState.mulligans = 0;
+    goldfishState.bottomPending = 0;
+    goldfishState.selected.clear();
+    renderGoldfish();
+  });
+}
+
+if (goldfishHand) {
+  goldfishHand.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const action = button.getAttribute("data-action");
+    const id = button.getAttribute("data-id");
+    if (action === "select") {
+      if (goldfishState.selected.has(id)) {
+        goldfishState.selected.delete(id);
+      } else {
+        goldfishState.selected.add(id);
+      }
+      renderGoldfish();
+      return;
+    }
+    if (action === "battlefield") moveCard(id, "hand", "battlefield");
+    if (action === "graveyard") moveCard(id, "hand", "graveyard");
+    if (action === "exile") moveCard(id, "hand", "exile");
+  });
+}
+
+if (goldfishBattlefield) {
+  goldfishBattlefield.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const action = button.getAttribute("data-action");
+    const id = button.getAttribute("data-id");
+    if (action === "hand") moveCard(id, "battlefield", "hand");
+    if (action === "graveyard") moveCard(id, "battlefield", "graveyard");
+  });
+}
+
+if (goldfishGraveyard) {
+  goldfishGraveyard.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const action = button.getAttribute("data-action");
+    const id = button.getAttribute("data-id");
+    if (action === "hand") moveCard(id, "graveyard", "hand");
+    if (action === "battlefield") moveCard(id, "graveyard", "battlefield");
+  });
+}
+
+if (goldfishExile) {
+  goldfishExile.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const action = button.getAttribute("data-action");
+    const id = button.getAttribute("data-id");
+    if (action === "hand") moveCard(id, "exile", "hand");
   });
 }
 
