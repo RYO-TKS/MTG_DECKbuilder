@@ -777,10 +777,15 @@ button:hover {
   }
 
   .print-list {
-    column-count: 2;
-    column-gap: 14px;
-    column-fill: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
     font-size: 8.5pt;
+  }
+
+  .print-column {
+    display: grid;
+    gap: 4px;
   }
 
   .print-row {

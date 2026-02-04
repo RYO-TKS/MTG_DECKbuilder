@@ -37,7 +37,9 @@ const printSideCount = document.querySelector("#print-side-count");
 const printCreatureCount = document.querySelector("#print-creature-count");
 const printLandCount = document.querySelector("#print-land-count");
 const printMainList = document.querySelector("#print-main-list");
+const printMainList2 = document.querySelector("#print-main-list-2");
 const printSideList = document.querySelector("#print-side-list");
+const printSideList2 = document.querySelector("#print-side-list-2");
 
 const deckState = {
   main: [],
@@ -719,24 +721,33 @@ function renderPrintGroup(target, title, list) {
   target.appendChild(group);
 }
 
-function renderPrintList(target, list) {
-  if (!target) return;
-  target.innerHTML = "";
+function renderPrintList(leftTarget, rightTarget, list) {
+  if (!leftTarget || !rightTarget) return;
+  leftTarget.innerHTML = "";
+  rightTarget.innerHTML = "";
   const lands = list.filter((card) => card.typeCategory === "land");
   const creatures = list.filter((card) => card.typeCategory === "creature");
   const spells = list.filter((card) => card.typeCategory === "spell");
   const countQty = (items) =>
     items.reduce((sum, card) => sum + card.quantity, 0);
-  if (lands.length)
-    renderPrintGroup(target, `土地 (${countQty(lands)})`, lands);
+  const groups = [];
+  if (lands.length) groups.push({ title: `土地 (${countQty(lands)})`, list: lands });
   if (creatures.length)
-    renderPrintGroup(
-      target,
-      `クリーチャー (${countQty(creatures)})`,
-      creatures
-    );
-  if (spells.length)
-    renderPrintGroup(target, `呪文 (${countQty(spells)})`, spells);
+    groups.push({ title: `クリーチャー (${countQty(creatures)})`, list: creatures });
+  if (spells.length) groups.push({ title: `呪文 (${countQty(spells)})`, list: spells });
+
+  let leftCount = 0;
+  let rightCount = 0;
+  groups.forEach((group) => {
+    const groupCount = countQty(group.list);
+    if (leftCount <= rightCount) {
+      renderPrintGroup(leftTarget, group.title, group.list);
+      leftCount += groupCount;
+    } else {
+      renderPrintGroup(rightTarget, group.title, group.list);
+      rightCount += groupCount;
+    }
+  });
 }
 
 function updatePrintLayout() {
@@ -778,8 +789,8 @@ function updatePrintLayout() {
     printLandCount.textContent = `${landCount}`;
   }
 
-  renderPrintList(printMainList, mainVisible);
-  renderPrintList(printSideList, sideVisible);
+  renderPrintList(printMainList, printMainList2, mainVisible);
+  renderPrintList(printSideList, printSideList2, sideVisible);
 }
 
 function updateFormatNote(hiddenMain, hiddenSide) {
