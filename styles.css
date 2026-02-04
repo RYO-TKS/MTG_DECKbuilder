@@ -105,6 +105,33 @@ body {
   flex-wrap: wrap;
 }
 
+.view-tabs {
+  display: flex;
+  gap: 8px;
+  background: var(--surface);
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+}
+
+.view-tabs button {
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.view-tabs button.active {
+  background: rgba(224, 168, 82, 0.18);
+  color: var(--text);
+  border-color: rgba(224, 168, 82, 0.4);
+}
+
+.hidden {
+  display: none !important;
+}
+
 .layout {
   display: grid;
   gap: var(--gap);

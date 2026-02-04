@@ -22,6 +22,10 @@
           <h1>デッキ構築を、静かに研ぎ澄ます。</h1>
         </div>
       </div>
+      <div class="view-tabs" id="view-tabs">
+        <button class="active" data-view="builder">デッキ構築</button>
+        <button data-view="goldfish">一人回し</button>
+      </div>
       <div class="header-actions">
         <button class="ghost">PWAインストール</button>
         <button class="primary">新規デッキ</button>
@@ -29,7 +33,7 @@
     </header>
 
     <main class="layout">
-      <section class="card panel search" aria-labelledby="search-title">
+      <section class="card panel search view-builder" aria-labelledby="search-title">
         <div class="panel-head">
           <h2 id="search-title">カード検索</h2>
           <p>英語/日本語どちらでも検索可能。結果は自動的に日本語優先表示。</p>
@@ -110,7 +114,7 @@
         </div>
       </section>
 
-      <section class="card panel deck" aria-labelledby="deck-title">
+      <section class="card panel deck view-builder" aria-labelledby="deck-title">
         <div class="panel-head">
           <h2 id="deck-title">デッキリスト</h2>
           <div class="toggle">
@@ -167,7 +171,7 @@
         </div>
       </section>
 
-      <section class="card panel stats" aria-labelledby="stats-title">
+      <section class="card panel stats view-builder" aria-labelledby="stats-title">
         <div class="panel-head">
           <h2 id="stats-title">統計 & 分析</h2>
           <p>デッキの構成を可視化。色配分とマナカーブを確認。</p>
@@ -225,7 +229,7 @@
         </div>
       </section>
 
-      <section class="card panel goldfish" aria-labelledby="goldfish-title">
+      <section class="card panel goldfish view-goldfish" aria-labelledby="goldfish-title">
         <div class="panel-head">
           <h2 id="goldfish-title">一人回し</h2>
           <p>デッキをシャッフルして初手やドローを確認できます。</p>
@@ -264,7 +268,7 @@
         </div>
       </section>
 
-      <section class="card panel io" aria-labelledby="io-title">
+      <section class="card panel io view-builder" aria-labelledby="io-title">
         <div class="panel-head">
           <h2 id="io-title">インポート / エクスポート</h2>
           <p>テキスト取り込み、Arena形式やPDF出力に対応。</p>

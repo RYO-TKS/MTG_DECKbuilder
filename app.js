@@ -11,6 +11,7 @@ const searchResults = document.querySelector("#search-results");
 const searchFilters = document.querySelector("#search-filters");
 const formatSelect = document.querySelector("#format-select");
 const formatNote = document.querySelector("#format-note");
+const viewTabs = document.querySelector("#view-tabs");
 const importFile = document.querySelector("#import-file");
 const importRun = document.querySelector("#import-run");
 const importProgress = document.querySelector("#import-progress");
@@ -67,6 +68,8 @@ const goldfishHand = document.querySelector("#goldfish-hand");
 const goldfishBattlefield = document.querySelector("#goldfish-battlefield");
 const goldfishGraveyard = document.querySelector("#goldfish-graveyard");
 const goldfishExile = document.querySelector("#goldfish-exile");
+const builderViews = document.querySelectorAll(".view-builder");
+const goldfishViews = document.querySelectorAll(".view-goldfish");
 
 const deckState = {
   main: [],
@@ -1316,6 +1319,16 @@ function refreshViews() {
   updateFormatNote(hiddenMain, hiddenSide);
 }
 
+function setActiveView(view) {
+  if (view === "goldfish") {
+    builderViews.forEach((el) => el.classList.add("hidden"));
+    goldfishViews.forEach((el) => el.classList.remove("hidden"));
+  } else {
+    builderViews.forEach((el) => el.classList.remove("hidden"));
+    goldfishViews.forEach((el) => el.classList.add("hidden"));
+  }
+}
+
 function runImport() {
   if (!importFile || !importFile.files || !importFile.files[0]) {
     showToast("インポートするファイルを選択してください。");
@@ -1660,6 +1673,18 @@ if (searchFilters) {
     if (searchInput && searchInput.value) {
       runSearch(searchInput.value);
     }
+  });
+}
+
+if (viewTabs) {
+  viewTabs.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-view]");
+    if (!button) return;
+    const view = button.getAttribute("data-view") || "builder";
+    viewTabs.querySelectorAll("button[data-view]").forEach((el) => {
+      el.classList.toggle("active", el === button);
+    });
+    setActiveView(view);
   });
 }
 
