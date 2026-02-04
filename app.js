@@ -320,6 +320,18 @@ function normalizeResultCard(card, nameJaOverride) {
   const typeCategory = classifyType(typeLine);
   const nameEn = card.name || "";
   const nameJa = nameJaOverride || card.printed_name || null;
+  const power =
+    typeof card.power === "string"
+      ? card.power
+      : card.card_faces && card.card_faces[0]
+      ? card.card_faces[0].power
+      : null;
+  const toughness =
+    typeof card.toughness === "string"
+      ? card.toughness
+      : card.card_faces && card.card_faces[0]
+      ? card.card_faces[0].toughness
+      : null;
   return {
     id: card.id,
     nameEn,
@@ -333,6 +345,8 @@ function normalizeResultCard(card, nameJaOverride) {
     imageUrl: getCardImage(card),
     legalities: card.legalities || {},
     colorIdentity: card.color_identity || [],
+    power,
+    toughness,
   };
 }
 
@@ -631,6 +645,19 @@ async function enrichDeckList(list) {
           colorIdentity: dataJa.color_identity || [],
           cmc: typeof dataJa.cmc === "number" ? dataJa.cmc : null,
           imageUrl: getCardImage(dataJa),
+          manaCost: dataJa.mana_cost || "",
+          power:
+            typeof dataJa.power === "string"
+              ? dataJa.power
+              : dataJa.card_faces && dataJa.card_faces[0]
+              ? dataJa.card_faces[0].power
+              : null,
+          toughness:
+            typeof dataJa.toughness === "string"
+              ? dataJa.toughness
+              : dataJa.card_faces && dataJa.card_faces[0]
+              ? dataJa.card_faces[0].toughness
+              : null,
         };
       }
       return {
@@ -644,6 +671,9 @@ async function enrichDeckList(list) {
         colorIdentity: [],
         cmc: null,
         imageUrl: "",
+        manaCost: "",
+        power: null,
+        toughness: null,
       };
     }
 
@@ -679,6 +709,19 @@ async function enrichDeckList(list) {
       colorIdentity: data.color_identity || [],
       cmc: typeof data.cmc === "number" ? data.cmc : null,
       imageUrl: getCardImage(data),
+      manaCost: data.mana_cost || "",
+      power:
+        typeof data.power === "string"
+          ? data.power
+          : data.card_faces && data.card_faces[0]
+          ? data.card_faces[0].power
+          : null,
+      toughness:
+        typeof data.toughness === "string"
+          ? data.toughness
+          : data.card_faces && data.card_faces[0]
+          ? data.card_faces[0].toughness
+          : null,
     };
   });
 }
@@ -920,6 +963,10 @@ function buildLibraryFromDeck() {
         name,
         nameEn: card.nameEn || card.name,
         imageUrl: card.imageUrl || "",
+        manaCost: card.manaCost || "",
+        typeLine: card.typeLine || "",
+        power: card.power || null,
+        toughness: card.toughness || null,
       });
     }
   });
@@ -1020,9 +1067,16 @@ function renderZone(list, container, actions) {
     const thumbStyle = card.imageUrl
       ? `style="background-image:url('${card.imageUrl}')"`
       : "";
+    const pt =
+      card.power && card.toughness ? ` ${card.power}/${card.toughness}` : "";
     row.innerHTML = `
       <div class="zone-thumb" ${thumbStyle}></div>
-      <span>${card.name}</span>
+      <div>
+        <div>${card.name}</div>
+        <div class="zone-meta">${card.manaCost || "—"} · ${
+      card.typeLine || "—"
+    }${pt}</div>
+      </div>
       <div class="zone-actions">
         ${actions
           .map(
