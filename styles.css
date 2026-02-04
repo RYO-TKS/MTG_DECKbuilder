@@ -747,6 +747,11 @@ button:hover {
   background: rgba(224, 168, 82, 0.12);
 }
 
+.zone-card.tapped {
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
 .zone-actions {
   display: flex;
   gap: 4px;

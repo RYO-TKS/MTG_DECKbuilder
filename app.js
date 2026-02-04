@@ -1097,6 +1097,7 @@ function moveCard(cardId, from, to) {
   const index = fromList.findIndex((card) => card.id === cardId);
   if (index === -1) return;
   const [card] = fromList.splice(index, 1);
+  card.tapped = false;
   toList.push(card);
   renderGoldfish();
 }
@@ -1124,6 +1125,7 @@ function renderZone(list, container, actions) {
   list.forEach((card) => {
     const row = document.createElement("div");
     row.className = "zone-card";
+    if (card.tapped) row.classList.add("tapped");
     if (container === goldfishHand) {
       const colorClass = getCardColorClass(card);
       if (colorClass) row.classList.add(colorClass);
@@ -1182,6 +1184,7 @@ function renderGoldfish() {
     { action: "exile", label: "追放" },
   ]);
   renderZone(goldfishState.battlefield, goldfishBattlefield, [
+    { action: "tap", label: "タップ" },
     { action: "hand", label: "手札" },
     { action: "graveyard", label: "墓地" },
   ]);
@@ -1593,6 +1596,14 @@ if (goldfishBattlefield) {
     if (!button) return;
     const action = button.getAttribute("data-action");
     const id = button.getAttribute("data-id");
+    if (action === "tap") {
+      const card = goldfishState.battlefield.find((item) => item.id === id);
+      if (!card) return;
+      snapshotGoldfish();
+      card.tapped = !card.tapped;
+      renderGoldfish();
+      return;
+    }
     if (action === "hand") moveCard(id, "battlefield", "hand");
     if (action === "graveyard") moveCard(id, "battlefield", "graveyard");
   });
