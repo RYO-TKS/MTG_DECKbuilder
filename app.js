@@ -8,6 +8,7 @@ const deckList = document.querySelector("#deck-list");
 const searchInput = document.querySelector("#search-input");
 const searchButton = document.querySelector("#search-button");
 const searchResults = document.querySelector("#search-results");
+const searchFilters = document.querySelector("#search-filters");
 const formatSelect = document.querySelector("#format-select");
 const formatNote = document.querySelector("#format-note");
 const importFile = document.querySelector("#import-file");
@@ -60,6 +61,7 @@ const scryfallCache = new Map();
 let dictionaryMap = null;
 let searchTimer = null;
 const lastSearchResults = new Map();
+let activeSearchFilter = "all";
 const DICT_URL_KEY = "mtg.dict.url";
 const DICT_AUTO_KEY = "mtg.dict.auto";
 const DICT_UPDATED_KEY = "mtg.dict.updated";
@@ -117,7 +119,13 @@ function classifyType(typeLine) {
   if (!typeLine) return "spell";
   if (/Land|土地/i.test(typeLine)) return "land";
   if (/Creature|クリーチャー/i.test(typeLine)) return "creature";
+  if (/Artifact|アーティファクト/i.test(typeLine)) return "artifact";
   return "spell";
+}
+
+function matchesSearchFilter(card) {
+  if (activeSearchFilter === "all") return true;
+  return card.typeCategory === activeSearchFilter;
 }
 
 function getSelectedFormat() {
@@ -316,7 +324,9 @@ async function runSearch(query) {
   });
 
   const format = getSelectedFormat();
-  const filtered = mapped.filter((card) => isLegalForFormat(card, format));
+  const filtered = mapped.filter(
+    (card) => isLegalForFormat(card, format) && matchesSearchFilter(card)
+  );
   if (!filtered.length) {
     searchResults.innerHTML = `<div class="search-empty">このフォーマットで合法なカードがありません。</div>`;
     return;
@@ -1099,6 +1109,21 @@ if (searchResults) {
 if (formatSelect) {
   formatSelect.addEventListener("change", () => {
     refreshViews();
+    if (searchInput && searchInput.value) {
+      runSearch(searchInput.value);
+    }
+  });
+}
+
+if (searchFilters) {
+  searchFilters.addEventListener("click", (event) => {
+    const chip = event.target.closest(".chip");
+    if (!chip) return;
+    const filter = chip.getAttribute("data-filter") || "all";
+    activeSearchFilter = filter;
+    searchFilters.querySelectorAll(".chip").forEach((el) => {
+      el.classList.toggle("active", el === chip);
+    });
     if (searchInput && searchInput.value) {
       runSearch(searchInput.value);
     }
