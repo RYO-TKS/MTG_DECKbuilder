@@ -779,6 +779,7 @@ button:hover {
   .print-list {
     column-count: 2;
     column-gap: 14px;
+    column-fill: auto;
     font-size: 8.5pt;
   }
 
@@ -799,6 +800,7 @@ button:hover {
 
   .print-group {
     break-inside: avoid;
+    break-inside: avoid-column;
     page-break-inside: avoid;
     margin-bottom: 4px;
   }
