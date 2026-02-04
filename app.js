@@ -821,16 +821,46 @@ function renderPrintList(leftTarget, rightTarget, list) {
   if (!leftTarget || !rightTarget) return;
   leftTarget.innerHTML = "";
   rightTarget.innerHTML = "";
-  const lands = list.filter((card) => card.typeCategory === "land");
-  const creatures = list.filter((card) => card.typeCategory === "creature");
-  const spells = list.filter((card) => card.typeCategory === "spell");
   const countQty = (items) =>
     items.reduce((sum, card) => sum + card.quantity, 0);
   const groups = [];
+  const lands = list.filter((card) => card.typeCategory === "land");
+  const creatures = list.filter((card) => card.typeCategory === "creature");
+  const artifacts = list.filter((card) => card.typeCategory === "artifact");
+  const enchantments = list.filter((card) => card.typeCategory === "enchantment");
+  const instants = list.filter((card) => card.typeCategory === "instant");
+  const sorceries = list.filter((card) => card.typeCategory === "sorcery");
+  const planeswalkers = list.filter((card) => card.typeCategory === "planeswalker");
+  const others = list.filter(
+    (card) =>
+      ![
+        "land",
+        "creature",
+        "artifact",
+        "enchantment",
+        "instant",
+        "sorcery",
+        "planeswalker",
+      ].includes(card.typeCategory)
+  );
+
   if (lands.length) groups.push({ title: `土地 (${countQty(lands)})`, list: lands });
   if (creatures.length)
     groups.push({ title: `クリーチャー (${countQty(creatures)})`, list: creatures });
-  if (spells.length) groups.push({ title: `呪文 (${countQty(spells)})`, list: spells });
+  if (artifacts.length)
+    groups.push({ title: `アーティファクト (${countQty(artifacts)})`, list: artifacts });
+  if (enchantments.length)
+    groups.push({ title: `エンチャント (${countQty(enchantments)})`, list: enchantments });
+  if (instants.length)
+    groups.push({ title: `インスタント (${countQty(instants)})`, list: instants });
+  if (sorceries.length)
+    groups.push({ title: `ソーサリー (${countQty(sorceries)})`, list: sorceries });
+  if (planeswalkers.length)
+    groups.push({
+      title: `プレインズウォーカー (${countQty(planeswalkers)})`,
+      list: planeswalkers,
+    });
+  if (others.length) groups.push({ title: `その他 (${countQty(others)})`, list: others });
 
   let leftCount = 0;
   let rightCount = 0;
