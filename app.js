@@ -970,6 +970,8 @@ function buildLibraryFromDeck() {
         cmc: typeof card.cmc === "number" ? card.cmc : null,
         power: card.power || null,
         toughness: card.toughness || null,
+        colors: card.colors || [],
+        colorIdentity: card.colorIdentity || [],
       });
     }
   });
@@ -1054,6 +1056,18 @@ function moveCard(cardId, from, to) {
   renderGoldfish();
 }
 
+function getCardColorClass(card) {
+  if (/Land|土地/i.test(card.typeLine || "")) return "";
+  const colors =
+    (card.colorIdentity && card.colorIdentity.length
+      ? card.colorIdentity
+      : card.colors) || [];
+  if (!colors.length) return "colorless";
+  if (colors.length > 1) return "gold";
+  const c = colors[0];
+  return `color-${c.toLowerCase()}`;
+}
+
 function renderZone(list, container, actions) {
   if (!container) return;
   container.innerHTML = "";
@@ -1064,6 +1078,10 @@ function renderZone(list, container, actions) {
   list.forEach((card) => {
     const row = document.createElement("div");
     row.className = "zone-card";
+    if (container === goldfishHand) {
+      const colorClass = getCardColorClass(card);
+      if (colorClass) row.classList.add(colorClass);
+    }
     if (goldfishState.selected.has(card.id)) {
       row.classList.add("selected");
     }
