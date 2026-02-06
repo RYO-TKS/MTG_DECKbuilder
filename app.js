@@ -847,7 +847,9 @@ function renderDeck(main, side, container, emptyMessage, board = "main") {
         <p>インポート</p>
       </div>
       <div class="count">
+        <button data-action="minus" data-name="${card.nameEn || card.name}">-</button>
         <span>${card.quantity}</span>
+        <button data-action="plus" data-name="${card.nameEn || card.name}">+</button>
       </div>
     `;
     fragment.appendChild(row);
@@ -1428,6 +1430,24 @@ function refreshViews() {
   updateFormatNote(hiddenMain, hiddenSide);
 }
 
+function adjustDeckCount(list, nameKey, delta) {
+  const index = list.findIndex((card) => (card.nameEn || card.name) === nameKey);
+  if (index === -1) return;
+  const card = list[index];
+  if (delta > 0) {
+    if (!isBasicLand(card) && card.quantity >= 4) {
+      showToast("同名カードは4枚までです。");
+      return;
+    }
+    card.quantity += 1;
+  } else {
+    card.quantity -= 1;
+    if (card.quantity <= 0) {
+      list.splice(index, 1);
+    }
+  }
+}
+
 function setBoardView(board) {
   currentBoardView = board;
   if (boardMain) boardMain.classList.toggle("active", board === "main");
@@ -1851,6 +1871,20 @@ if (boardMain) {
 
 if (boardSide) {
   boardSide.addEventListener("click", () => setBoardView("side"));
+}
+
+if (deckList) {
+  deckList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const action = button.getAttribute("data-action");
+    const nameKey = button.getAttribute("data-name");
+    if (!nameKey) return;
+    const list = currentBoardView === "side" ? deckState.side : deckState.main;
+    adjustDeckCount(list, nameKey, action === "plus" ? 1 : -1);
+    updateSummary(countQty(deckState.main), countQty(deckState.side));
+    refreshViews();
+  });
 }
 
 if ("serviceWorker" in navigator) {
