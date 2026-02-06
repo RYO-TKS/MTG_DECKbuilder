@@ -11,6 +11,8 @@ const searchResults = document.querySelector("#search-results");
 const searchFilters = document.querySelector("#search-filters");
 const formatSelect = document.querySelector("#format-select");
 const formatNote = document.querySelector("#format-note");
+const boardMain = document.querySelector("#board-main");
+const boardSide = document.querySelector("#board-side");
 const viewTabs = document.querySelector("#view-tabs");
 const importFile = document.querySelector("#import-file");
 const importRun = document.querySelector("#import-run");
@@ -85,6 +87,7 @@ let dictionaryMap = null;
 let searchTimer = null;
 const lastSearchResults = new Map();
 let activeSearchFilter = "all";
+let currentBoardView = "main";
 const goldfishState = {
   library: [],
   hand: [],
@@ -806,10 +809,11 @@ function parseDeckText(text) {
   return { main, side };
 }
 
-function renderDeck(main, side, container, emptyMessage) {
+function renderDeck(main, side, container, emptyMessage, board = "main") {
   if (!container) return;
   container.innerHTML = "";
-  if (!main.length && !side.length) {
+  const targetList = board === "side" ? side : main;
+  if (!targetList.length) {
     container.innerHTML =
       `<div class="deck-row"><div><h4>カードがありません</h4><p>${
         emptyMessage || "インポートするか検索から追加してください。"
@@ -818,12 +822,12 @@ function renderDeck(main, side, container, emptyMessage) {
   }
 
   const fragment = document.createDocumentFragment();
-  const mainHeader = document.createElement("div");
-  mainHeader.className = "deck-section";
-  mainHeader.textContent = "Main Deck";
-  fragment.appendChild(mainHeader);
+  const header = document.createElement("div");
+  header.className = "deck-section";
+  header.textContent = board === "side" ? "Sideboard" : "Main Deck";
+  fragment.appendChild(header);
 
-  main.forEach((card) => {
+  targetList.forEach((card) => {
     const row = document.createElement("div");
     row.className = "deck-row";
     const colorClass = getCardColorClass(card);
@@ -839,30 +843,6 @@ function renderDeck(main, side, container, emptyMessage) {
     `;
     fragment.appendChild(row);
   });
-
-  if (side.length) {
-    const sideHeader = document.createElement("div");
-    sideHeader.className = "deck-section";
-    sideHeader.textContent = "Sideboard";
-    fragment.appendChild(sideHeader);
-
-    side.forEach((card) => {
-      const row = document.createElement("div");
-      row.className = "deck-row";
-      const colorClass = getCardColorClass(card);
-      if (colorClass) row.classList.add(colorClass);
-      row.innerHTML = `
-        <div>
-          <h4>${card.name}</h4>
-          <p>インポート</p>
-        </div>
-        <div class="count">
-          <span>${card.quantity}</span>
-        </div>
-      `;
-      fragment.appendChild(row);
-    });
-  }
 
   container.appendChild(fragment);
 }
@@ -1433,10 +1413,17 @@ function refreshViews() {
     getSelectedFormat() !== "all" && (hiddenMain || hiddenSide)
       ? "フォーマット制限により非表示のカードがあります。"
       : null;
-  renderDeck(mainVisible, sideVisible, deckList, emptyMessage);
+  renderDeck(mainVisible, sideVisible, deckList, emptyMessage, currentBoardView);
   updateStats(mainVisible);
   updatePrintLayout();
   updateFormatNote(hiddenMain, hiddenSide);
+}
+
+function setBoardView(board) {
+  currentBoardView = board;
+  if (boardMain) boardMain.classList.toggle("active", board === "main");
+  if (boardSide) boardSide.classList.toggle("active", board === "side");
+  refreshViews();
 }
 
 function setActiveView(view) {
@@ -1847,6 +1834,14 @@ if (viewTabs) {
     });
     setActiveView(view);
   });
+}
+
+if (boardMain) {
+  boardMain.addEventListener("click", () => setBoardView("main"));
+}
+
+if (boardSide) {
+  boardSide.addEventListener("click", () => setBoardView("side"));
 }
 
 if ("serviceWorker" in navigator) {
