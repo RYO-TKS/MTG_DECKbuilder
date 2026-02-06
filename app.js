@@ -822,9 +822,18 @@ function renderDeck(main, side, container, emptyMessage, board = "main") {
   }
 
   const fragment = document.createDocumentFragment();
+  const mainCount = countQty(main);
+  const sideCount = countQty(side);
+  const mainWarn =
+    mainCount === 60 ? "" : mainCount > 60 ? "over" : "under";
+  const sideWarn =
+    sideCount === 15 ? "" : sideCount > 15 ? "over" : "under";
   const header = document.createElement("div");
   header.className = "deck-section";
-  header.textContent = board === "side" ? "Sideboard" : "Main Deck";
+  header.innerHTML =
+    board === "side"
+      ? `Sideboard <span class="deck-count ${sideWarn}">${sideCount}</span>`
+      : `Main Deck <span class="deck-count ${mainWarn}">${mainCount}</span>`;
   fragment.appendChild(header);
 
   targetList.forEach((card) => {
